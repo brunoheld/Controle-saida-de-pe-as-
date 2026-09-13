@@ -19,8 +19,6 @@ if "u_cli" not in st.session_state: st.session_state.u_cli = ""
 @st.cache_data(ttl=5)
 def l_cli():
     try:
-        # Usa o link base direto da raiz de forma limpa e estável
-        url = st.secrets["link_planilha"]
         url_csv = "https://google.com"
         df = pd.read_csv(url_csv)
         df.columns = df.columns.str.strip().str.upper()
@@ -82,20 +80,20 @@ def g_pdf(c, e, cd, t, n, tec, p, r):
 
 st.subheader("🔍 1. Identificação do Elevador")
 col1, col2, col3 = st.columns(3)
-cc = "CLIENTE" if "CLIENTE" in df_c.columns else df_c.columns if len(df_c.columns)>0 else ""
-ce = "ENDERECO" if "ENDERECO" in df_c.columns else "ENREDECO" if "ENREDECO" in df_c.columns else df_c.columns if len(df_c.columns)>1 else ""
-co = "CODELEVADOR" if "CODELEVADOR" in df_c.columns else df_c.columns if len(df_c.columns)>2 else ""
 
 with col1:
-    sel_c = st.selectbox("Escolha o Cliente:", ["Selecione..."] + list(df_c[cc].dropna().unique()), key=f"c_{st.session_state.chave_reset}")
-df_fc = df_c[df_c[cc] == sel_c] if sel_c != "Selecione..." else pd.DataFrame()
+    opcoes_cli = ["Selecione..."] + list(df_c["CLIENTE"].dropna().unique()) if "CLIENTE" in df_c.columns else ["Selecione..."]
+    sel_c = st.selectbox("Escolha o Cliente:", opcoes_cli, key=f"c_{st.session_state.chave_reset}")
+df_fc = df_c[df_c["CLIENTE"] == sel_c] if sel_c != "Selecione..." else pd.DataFrame()
 
 with col2:
-    sel_e = st.selectbox("Escolha o Endereço:", list(df_fc[ce].dropna().unique()) if not df_fc.empty else ["Aguardando..."], key=f"e_{st.session_state.chave_reset}")
-df_fe = df_fc[df_fc[ce] == sel_e] if not df_fc.empty else pd.DataFrame()
+    opcoes_end = list(df_fc["ENDERECO"].dropna().unique()) if not df_fc.empty and "ENDERECO" in df_fc.columns else ["Aguardando..."]
+    sel_e = st.selectbox("Escolha o Endereço:", opcoes_end, key=f"e_{st.session_state.chave_reset}")
+df_fe = df_fc[df_fc["ENDERECO"] == sel_e] if not df_fc.empty else pd.DataFrame()
 
 with col3:
-    sel_o = st.selectbox("Código do Elevador:", list(df_fe[co].dropna().unique()) if not df_fe.empty else ["Aguardando..."], key=f"o_{st.session_state.chave_reset}")
+    opcoes_cod = list(df_fe["CODELEVADOR"].dropna().unique()) if not df_fe.empty and "CODELEVADOR" in df_fe.columns else ["Aguardando..."]
+    sel_o = st.selectbox("Código do Elevador:", opcoes_cod, key=f"o_{st.session_state.chave_reset}")
 
 st.write("---")
 st.subheader("📝 2. Dados do Atendimento")
