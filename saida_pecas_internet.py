@@ -30,8 +30,14 @@ def l_hist():
 df_c, df_h = l_cli(), l_hist()
 def n_mst(df):
     try:
-        df_m = df[df["TIPO_CONTRATO"].astype(str).str.upper() == "MASTER"]
-        return int(pd.to_numeric(df_m["NUM_CONTROLE"], errors='coerce').max()) + 1
+        if df.empty or "TIPO_CONTRATO" not in df.columns or "NUM_CONTROLE" not in df.columns: return 1
+        df_limpo = df.copy()
+        df_limpo["TIPO_CONTRATO"] = df_limpo["TIPO_CONTRATO"].astype(str).str.strip().str.upper()
+        df_m = df_limpo[df_limpo["TIPO_CONTRATO"] == "MASTER"]
+        if df_m.empty: return 1
+        valores = pd.to_numeric(df_m["NUM_CONTROLE"], errors='coerce').dropna()
+        if valores.empty: return 1
+        return int(valores.max()) + 1
     except: return 1
 if "n_doc" not in st.session_state: st.session_state.n_doc = n_mst(df_h)
 def g_pdf(c,e,cd,t,n,tec,p,r):
@@ -47,7 +53,7 @@ def g_pdf(c,e,cd,t,n,tec,p,r):
     el.extend([tab, Spacer(1, 20)])
     ass_t = "_______________________________________<br/><b>Assinatura do Técnico</b>"
     ass_c = "Nome: _________________________________<br/><br/>Função: _______________________________<br/><br/>RG/CPF: _______________________________<br/><br/>_______________________________________<br/><b>Assinatura do Cliente</b>"
-    t_ass = Table([[Paragraph(ass_t, c_s), Paragraph(ass_c, c_s)]], colWidths=[260, 260])
+    t_ass = Table([[Paragraph(ass_t, c_s), Paragraph(ass_c, c_s)]], colWidths=[250, 250])
     t_ass.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('PADDING', (0,0), (-1,-1), 0)]))
     el.extend([t_ass])
     doc.build(el)
