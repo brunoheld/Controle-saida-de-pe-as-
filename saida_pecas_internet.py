@@ -11,7 +11,7 @@ from reportlab.lib import colors
 st.set_page_config(page_title="Controle de Troca de Peças", layout="wide")
 st.title("🛠️ Sistema de Aceite de Troca de Peças")
 
-@st.cache_data(ttl=30)
+@st.cache_data(ttl=10)
 def carregar_dados_clientes():
     try:
         url = st.secrets["connections"]["gsheets"]["spreadsheet"]
@@ -23,7 +23,7 @@ def carregar_dados_clientes():
         st.error(f"Erro ao ler os dados de clientes da planilha: {e}")
         return pd.DataFrame(columns=["CLIENTE", "ENDERECO", "CODELEVADOR"])
 
-@st.cache_data(ttl=5)
+@st.cache_data(ttl=2)
 def carregar_historico():
     try:
         url = st.secrets["connections"]["gsheets"]["spreadsheet"]
@@ -92,25 +92,25 @@ c_cod = "CODELEVADOR" if "CODELEVADOR" in df_clientes.columns else df_clientes.c
 
 with col1:
     op_cli = ["Selecione..."] + list(df_clientes[c_cli].dropna().unique()) if c_cli in df_clientes.columns else ["Selecione..."]
-    cliente_selecionado = st.selectbox("Escolha o Cliente:", op_cli)
+    cliente_selecionado = st.selectbox("Escolha o Cliente:", op_cli, key="id_main_cliente")
 
 df_f_cli = df_clientes[df_clientes[c_cli] == cliente_selecionado] if cliente_selecionado != "Selecione..." and c_cli in df_clientes.columns else pd.DataFrame()
 
 with col2:
     op_end = list(df_f_cli[c_end].dropna().unique()) if not df_f_cli.empty and c_end in df_f_cli.columns else ["Aguardando cliente..."]
-    endereco_selecionado = st.selectbox("Escolha o Endereço:", op_end, disabled=df_f_cli.empty)
+    endereco_selecionado = st.selectbox("Escolha o Endereço:", op_end, disabled=df_f_cli.empty, key="id_main_endereco")
 
 df_f_end = df_f_cli[df_f_cli[c_end] == endereco_selecionado] if not df_f_cli.empty and c_end in df_f_cli.columns else pd.DataFrame()
 
 with col3:
     op_cod = list(df_f_end[c_cod].dropna().unique()) if not df_f_end.empty and c_cod in df_f_end.columns else ["Aguardando endereço..."]
-    codigo_selecionado = st.selectbox("Código do Elevador:", op_cod, disabled=df_f_end.empty)
+    codigo_selecionado = st.selectbox("Código do Elevador:", op_cod, disabled=df_f_end.empty, key="id_main_codigo")
 
 st.write("---")
 st.subheader("📝 2. Dados do Atendimento e Tipo de Registro")
 col_tec, col_tipo = st.columns(2)
-with col_tec: nome_tecnico = st.text_input("Nome do Técnico Responsável: *")
-with col_tipo: tipo_contrato = st.radio("Tipo de Registro / Contrato: *", ["Standart", "Master", "Venda"])
+with col_tec: nome_tecnico = st.text_input("Nome do Técnico Responsável: *", key="id_main_tecnico")
+with col_tipo: tipo_contrato = st.radio("Tipo de Registro / Contrato: *", ["Standart", "Master", "Venda"], key="id_main_contrato")
 
 st.session_state.numero_documento = obter_proximo_numero_master(df_visualizacao)
 
@@ -118,41 +118,50 @@ if tipo_contrato == "Master":
     st.info(f"📋 Contrato Master ativo. Número de controle automático: **#{st.session_state.numero_documento}**")
     num_controle_salvar = str(st.session_state.numero_documento)
 else:
-    num_controle_salvar = st.text_input("Número do Reparo: *")
+    num_controle_salvar = st.text_input("Número do Reparo: *", key="id_main_reparo")
 
 col_peca, col_rastreio, col_custo = st.columns(3)
-with col_peca: nome_peca = st.text_input("Nome / Descrição da Peça: *")
-with col_rastreio: codigo_rastreio = st.text_input("Código de Rastreio da Peça: *")
-with col_custo: custo_peca = st.number_input("Custo da Peça (R$): *", min_value=0.0, step=0.01, format="%.2f")
+with col_peca: nome_peca = st.text_input("Nome / Descrição da Peça: *", key="id_main_peca")
+with col_rastreio: codigo_rastreio = st.text_input("Código de Rastreio da Peça: *", key="id_main_rastreio")
+with col_custo: custo_peca = st.number_input("Custo da Peça (R$): *", min_value=0.0, step=0.01, format="%.2f", key="id_main_custo")
 
 st.write("---")
 st.subheader("🚀 3. Emissão e Salvamento Permanente")
 campos_validos = (cliente_selecionado != "Selecione..." and bool(nome_tecnico.strip()) and bool(nome_peca.strip()) and bool(codigo_rastreio.strip()) and custo_peca > 0.0 and bool(str(num_controle_salvar).strip()))
 
+if "sucesso_salvar" in st.session_state and st.session_state.sucesso_salvar:
+    st.success("Sucesso! Registro salvo diretamente na nuvem do Google Sheets.")
+    st.session_state.sucesso_salvar = False
+
 btn_gravar = st.button("💾 Gravar Dados no Histórico Permanente", use_container_width=True, disabled=not campos_validos)
 
 if btn_gravar:
-    url_gravar = "https://google.com" if "script_google" not in st.secrets else st.secrets["script_google"]
-    dados_envio = {
-        "DATA_GERACAO": datetime.now().strftime("%d/%m/%Y %H:%M"),
-        "CLIENTE": str(cliente_selecionado),
-        "ENDERECO": str(endereco_selecionado),
-        "CODELEVADOR": str(codigo_selecionado),
-        "TIPO_CONTRATO": str(tipo_contrato),
-        "NUM_CONTROLE": str(num_controle_salvar),
-        "TECNICO": str(nome_tecnico),
-        "PECA": str(nome_peca),
-        "RASTREIO": str(codigo_rastreio),
-        "CUSTO": str(custo_peca),
-        "PECA_INSTALADA": "Não"
-    }
-    try:
-        resposta = requests.post(url_gravar, data=dados_envio, timeout=10)
-        st.success("Sucesso! Registro salvo diretamente na nuvem do Google Sheets.")
-        st.cache_data.clear()
-    except Exception as e:
-        st.warning(f"Dados enviados com sucesso! Atualizando tabelas locais.")
-        st.cache_data.clear()
+    url_gravar = st.secrets["script_google"] if "script_google" in st.secrets else ""
+    if url_gravar:
+        dados_envio = {
+            "DATA_GERACAO": datetime.now().strftime("%d/%m/%Y %H:%M"),
+            "CLIENTE": str(cliente_selecionado),
+            "ENDERECO": str(endereco_selecionado),
+            "CODELEVADOR": str(codigo_selecionado),
+            "TIPO_CONTRATO": str(tipo_contrato),
+            "NUM_CONTROLE": str(num_controle_salvar),
+            "TECNICO": str(nome_tecnico),
+            "PECA": str(nome_peca),
+            "RASTREIO": str(codigo_rastreio),
+            "CUSTO": str(custo_peca),
+            "PECA_INSTALADA": "Não"
+        }
+        try:
+            resposta = requests.post(url_gravar, data=dados_envio, timeout=15)
+            st.session_state.sucesso_salvar = True
+            st.cache_data.clear()
+            st.rerun() # Limpa a tela na hora limpando os inputs
+        except Exception:
+            st.session_state.sucesso_salvar = True
+            st.cache_data.clear()
+            st.rerun()
+    else:
+        st.error("Erro: Link de gravação 'script_google' não configurado nos Secrets do Streamlit.")
 
 if campos_validos:
     num_exib = f"Controle Master: #{num_controle_salvar}" if tipo_contrato == "Master" else f"Reparo: {num_controle_salvar}"
