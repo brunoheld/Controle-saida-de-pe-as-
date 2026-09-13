@@ -7,6 +7,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+from streamlit_gsheets import GSheetsConnection
 
 st.set_page_config(page_title="Controle", layout="wide")
 st.title("🛠️ Sistema de Aceite de Troca de Peças")
@@ -16,11 +17,14 @@ if "h_hide" not in st.session_state: st.session_state.h_hide = False
 if "u_pdf" not in st.session_state: st.session_state.u_pdf = None
 if "u_cli" not in st.session_state: st.session_state.u_cli = ""
 
+# CONEXÃO OFICIAL QUE RETORNOU OS CLIENTES DA OUTRA VEZ
+conn = st.connection("gsheets", type=GSheetsConnection)
+
 @st.cache_data(ttl=5)
 def l_cli():
     try:
-        url_csv = "https://google.com"
-        df = pd.read_csv(url_csv)
+        url_planilha = st.secrets["link_planilha"]
+        df = conn.read(spreadsheet=url_planilha, worksheet="clientes")
         df.columns = df.columns.str.strip().str.upper()
         return df
     except Exception as e:
@@ -30,8 +34,8 @@ def l_cli():
 def l_hist():
     if st.session_state.h_hide: return pd.DataFrame()
     try:
-        url_csv = "https://google.com"
-        df = pd.read_csv(url_csv)
+        url_planilha = st.secrets["link_planilha"]
+        df = conn.read(spreadsheet=url_planilha, worksheet="historico_aceites")
         df.columns = df.columns.str.strip().str.upper()
         return df
     except:
