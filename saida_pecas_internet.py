@@ -1,19 +1,26 @@
 import streamlit as st
 import pandas as pd
+import io
 import requests
 from datetime import datetime
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
 
 st.set_page_config(page_title="Controle", layout="wide")
 st.title("🛠️ Sistema de Aceite de Troca de Peças")
 
 if "chave_reset" not in st.session_state: st.session_state.chave_reset = 0
 if "h_hide" not in st.session_state: st.session_state.h_hide = False
+if "u_pdf" not in st.session_state: st.session_state.u_pdf = None
+if "u_cli" not in st.session_state: st.session_state.u_cli = ""
 
 @st.cache_data(ttl=5)
 def l_cli():
     try:
         url = st.secrets["link_planilha"]
-        df = pd.read_csv(f"{url.split('/edit')[0]}/export?format=csv&gid=0")
+        df = pd.read_csv(f"{url.split('/edit')}/export?format=csv&gid=0")
         df.columns = df.columns.str.strip().str.upper()
         return df
     except Exception as e:
@@ -24,7 +31,7 @@ def l_hist():
     if st.session_state.h_hide: return pd.DataFrame()
     try:
         url = st.secrets["link_planilha"]
-        df = pd.read_csv(f"{url.split('/edit')[0]}/export?format=csv&sheet=historico_aceites")
+        df = pd.read_csv(f"{url.split('/edit')}/export?format=csv&sheet=historico_aceites")
         df.columns = df.columns.str.strip().str.upper()
         return df
     except:
@@ -47,6 +54,31 @@ def n_mst(df):
         return 1
 
 n_doc_atual = n_mst(df_h)
+
+# FUNÇÃO DO PDF LEVE E BLINDADA CONTRA TRAVAMENTOS
+def g_pdf(c, e, cd, t, n, tec, p, r):
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+    sty = getSampleStyleSheet()
+    t_s = ParagraphStyle('T', parent=sty['Heading1'], fontSize=17, leading=20, alignment=1, spaceAfter=15, textColor=colors.HexColor('#1E3A8A'))
+    c_s = ParagraphStyle('C', parent=sty['Normal'], fontSize=10, leading=14)
+    
+    el = [Paragraph("<b>TERMO DE ACEITE DE TROCA DE PEÇAS</b>", t_s), Spacer(1, 5)]
+    mat = [[Paragraph(f"<b>{k}:</b>", c_s), Paragraph(str(v), c_s)] for k, v in [("Cliente", c), ("Endereço", e), ("Cód. Elevador", cd), ("Registro", f"{t} ({n})"), ("Técnico", tec), ("Peça", p), ("Rastreio", r)]]
+    tab = Table(mat)
+    tab.setStyle(TableStyle([('BACKGROUND', (0,0), (0,-1), colors.HexColor('#F3F4F6')), ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D1D5DB')), ('PADDING', (0,0), (-1,-1), 6)]))
+    el.extend([tab, Spacer(1, 20)])
+    
+    # Textos de validação e assinaturas com espaçamento simples estável
+    el.append(Paragraph("<b>VALIDAÇÃO OPERACIONAL E ASSINATURAS</b>", c_s))
+    el.append(Spacer(1, 15))
+    el.append(Paragraph("_______________________________________<br/><b>Assinatura do Técnico Responsável</b>", c_s))
+    el.append(Spacer(1, 25))
+    el.append(Paragraph("Nome do Cliente: _________________________________<br/><br/>Função / Cargo: _______________________________<br/><br/>RG ou CPF: ___________________________________<br/><br/>_______________________________________<br/><b>Assinatura do Autorizado (Cliente)</b>", c_s))
+    
+    doc.build(el)
+    buf.seek(0)
+    return buf.getvalue()
 
 st.subheader("🔍 1. Identificação do Elevador")
 col1, col2, col3 = st.columns(3)
@@ -91,6 +123,11 @@ if "sv" in st.session_state and st.session_state.sv:
     st.session_state.sv = False
 
 if st.button("💾 Gravar Dados no Histórico Permanente", use_container_width=True, disabled=not ok):
+    lbl = f"Master: #{v_num}" if rd_tip == "Master" else f"Reparo: {v_num}"
+    # Armazena o PDF em memória temporária para o download persistir após a limpeza da tela
+    st.session_state.u_pdf = g_pdf(sel_c, sel_e, sel_o, rd_tip, lbl, tx_tec, tx_pec, tx_ras)
+    st.session_state.u_cli = sel_c
+    
     pars = {
         "DATA_GERACAO": datetime.now().strftime("%d/%m/%Y %H:%M"),
         "CLIENTE": str(sel_c),
@@ -115,6 +152,15 @@ if st.button("💾 Gravar Dados no Histórico Permanente", use_container_width=T
         st.session_state.chave_reset += 1
         st.cache_data.clear()
         st.rerun()
+
+# CONTROLE DO BOTÃO DE DOWNLOAD DO PDF
+if st.session_state.u_pdf is not None:
+    st.download_button(label=f"📥 Baixar PDF Gerado para {st.session_state.u_cli}", data=st.session_state.u_pdf, file_name=f"aceite_{st.session_state.u_cli.replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
+elif ok:
+    lbl = f"Master: #{v_num}" if rd_tip == "Master" else f"Reparo: {v_num}"
+    st.download_button(label="📥 Baixar PDF Gerado", data=g_pdf(sel_c, sel_e, sel_o, rd_tip, lbl, tx_tec, tx_pec, tx_ras), file_name=f"aceite_{sel_c.replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
+else:
+    st.warning("⚠️ Preencha todos os campos obrigatórios para liberar as opções.")        
 
 st.write("---")
 t_col, b_col = st.columns(2)
