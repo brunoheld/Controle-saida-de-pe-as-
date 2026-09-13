@@ -18,7 +18,7 @@ if "contador_master_local" not in st.session_state: st.session_state.contador_ma
 def l_cli():
     try:
         url = st.secrets["link_planilha"]
-        df = pd.read_csv(f"{url.split('/edit')}/export?format=csv&gid=0")
+        df = pd.read_csv(f"{url.split('/edit')[0]}/export?format=csv&gid=0")
         df.columns = df.columns.str.strip().str.upper()
         return df
     except: return pd.DataFrame(columns=["CLIENTE","ENDERECO","CODELEVADOR"])
@@ -27,7 +27,7 @@ def l_hist():
     if st.session_state.h_hide: return pd.DataFrame()
     try:
         url = st.secrets["link_planilha"]
-        df = pd.read_csv(f"{url.split('/edit')}/export?format=csv&sheet=historico_aceites")
+        df = pd.read_csv(f"{url.split('/edit')[0]}/export?format=csv&sheet=historico_aceites")
         df.columns = df.columns.str.strip().str.upper()
         return df
     except: return pd.DataFrame()
