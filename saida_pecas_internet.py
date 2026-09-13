@@ -14,7 +14,7 @@ if "h_hide" not in st.session_state: st.session_state.h_hide = False
 def l_cli():
     try:
         url = st.secrets["link_planilha"]
-        df = pd.read_csv(f"{url.split('/edit')[0]}/export?format=csv&gid=0")
+        df = pd.read_csv(f"{url.split('/edit')}/export?format=csv&gid=0")
         df.columns = df.columns.str.strip().str.upper()
         return df
     except: return pd.DataFrame(columns=["CLIENTE","ENDERECO","CODELEVADOR"])
@@ -23,7 +23,7 @@ def l_hist():
     if st.session_state.h_hide: return pd.DataFrame()
     try:
         url = st.secrets["link_planilha"]
-        df = pd.read_csv(f"{url.split('/edit')[0]}/export?format=csv&sheet=historico_aceites")
+        df = pd.read_csv(f"{url.split('/edit')}/export?format=csv&sheet=historico_aceites")
         df.columns = df.columns.str.strip().str.upper()
         return df
     except: return pd.DataFrame()
@@ -43,16 +43,21 @@ def g_pdf(c,e,cd,t,n,tec,p,r):
     el = [Paragraph("<b>TERMO DE ACEITE DE TROCA DE PEÇAS</b>", t_s), Spacer(1, 5)]
     mat = [[Paragraph(f"<b>{k}:</b>", c_s), Paragraph(str(v), c_s)] for k, v in [("Cliente",c),("Endereço",e),("Cód. Elevador",cd),("Registro",f"{t} ({n})"),("Técnico",tec),("Peça",p),("Rastreio",r)]]
     tab = Table(mat)
-    tab.setStyle(TableStyle([('BACKGROUND',(0,0),(0,-1),colors.HexColor('#F3F4F6')),('GRID',(0,0),(-1,-1),0.5,colors.HexColor('#D1D5DB')),('PADDING',(0,0),(-1,-1),6)]))
-    el.extend([tab, Spacer(1, 30), Paragraph("_______________________________________          _______________________________________<br/><b>Assinatura do Técnico</b>                                      <b>Assinatura do Cliente</b>", c_s)])
+    tab.setStyle(TableStyle([('BACKGROUND',(0,0),(0,-1),colors.HexColor('#F3F4F6')), ('GRID',(0,0),(-1,-1),0.5,colors.HexColor('#D1D5DB')), ('PADDING',(0,0),(-1,-1),6)]))
+    el.extend([tab, Spacer(1, 20)])
+    ass_t = "_______________________________________<br/><b>Assinatura do Técnico</b>"
+    ass_c = "Nome: _________________________________<br/><br/>Função: _______________________________<br/><br/>RG/CPF: _______________________________<br/><br/>_______________________________________<br/><b>Assinatura do Cliente</b>"
+    t_ass = Table([[Paragraph(ass_t, c_s), Paragraph(ass_c, c_s)]], colWidths=[240, 240])
+    t_ass.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('PADDING', (0,0), (-1,-1), 0)]))
+    el.extend([t_ass])
     doc.build(el)
     buf.seek(0)
     return buf.getvalue()
 st.subheader("🔍 1. Identificação do Elevador")
 col1, col2, col3 = st.columns(3)
-cc = "CLIENTE" if "CLIENTE" in df_c.columns else df_c.columns[0] if len(df_c.columns)>0 else ""
-ce = "ENDERECO" if "ENDERECO" in df_c.columns else "ENREDECO" if "ENREDECO" in df_c.columns else df_c.columns[1] if len(df_c.columns)>1 else ""
-co = "CODELEVADOR" if "CODELEVADOR" in df_c.columns else df_c.columns[2] if len(df_c.columns)>2 else ""
+cc = "CLIENTE" if "CLIENTE" in df_c.columns else df_c.columns if len(df_c.columns)>0 else ""
+ce = "ENDERECO" if "ENDERECO" in df_c.columns else "ENREDECO" if "ENREDECO" in df_c.columns else df_c.columns if len(df_c.columns)>1 else ""
+co = "CODELEVADOR" if "CODELEVADOR" in df_c.columns else df_c.columns if len(df_c.columns)>2 else ""
 with col1: sel_c = st.selectbox("Escolha o Cliente:", ["Selecione..."] + list(df_c[cc].dropna().unique()), key=f"c_{st.session_state.chave_reset}")
 df_fc = df_c[df_c[cc] == sel_c] if sel_c != "Selecione..." else pd.DataFrame()
 with col2: sel_e = st.selectbox("Escolha o Endereço:", list(df_fc[ce].dropna().unique()) if not df_fc.empty else ["Aguardando..."], key=f"e_{st.session_state.chave_reset}")
@@ -102,7 +107,7 @@ elif ok:
     st.download_button(label="📥 Baixar PDF Gerado", data=g_pdf(sel_c, sel_e, sel_o, rd_tip, lbl, tx_tec, tx_pec, tx_ras), file_name=f"aceite_{sel_c.replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
 else: st.warning("⚠️ Preencha todos os campos obrigatórios.")        
 st.write("---")
-t_col, b_col = st.columns([3, 1])
+t_col, b_col = st.columns()
 with t_col: st.subheader("📋 Histórico em Tempo Real")
 with b_col:
     if st.button("🗑️ Limpar Histórico do Navegador", type="primary", use_container_width=True):
