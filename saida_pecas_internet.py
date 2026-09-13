@@ -10,24 +10,24 @@ if "chave_reset" not in st.session_state: st.session_state.chave_reset = 0
 if "u_pdf" not in st.session_state: st.session_state.u_pdf = None
 if "u_cli" not in st.session_state: st.session_state.u_cli = ""
 if "h_hide" not in st.session_state: st.session_state.h_hide = False
-@st.cache_data(ttl=10)
+@st.cache_data(ttl=5)
 def l_cli():
     try:
         url = st.secrets["link_planilha"]
-        df = pd.read_csv(f"{url.split('/edit')[0]}/export?format=csv&gid=0")
+        df = pd.read_csv(f"{url.split('/edit')}/export?format=csv&gid=0")
         df.columns = df.columns.str.strip().str.upper()
         return df
     except: return pd.DataFrame(columns=["CLIENTE","ENDERECO","CODELEVADOR"])
-@st.cache_data(ttl=2)
 def l_hist():
     if st.session_state.h_hide: return pd.DataFrame()
     try:
         url = st.secrets["link_planilha"]
-        df = pd.read_csv(f"{url.split('/edit')[0]}/export?format=csv&sheet=historico_aceites")
+        df = pd.read_csv(f"{url.split('/edit')}/export?format=csv&sheet=historico_aceites")
         df.columns = df.columns.str.strip().str.upper()
         return df
     except: return pd.DataFrame()
-df_c, df_h = l_cli(), l_hist()
+df_c = l_cli()
+df_h = l_hist()
 def n_mst(df):
     try:
         if df.empty or "TIPO_CONTRATO" not in df.columns or "NUM_CONTROLE" not in df.columns: return 1
@@ -39,7 +39,7 @@ def n_mst(df):
         if valores.empty: return 1
         return int(valores.max()) + 1
     except: return 1
-if "n_doc" not in st.session_state: st.session_state.n_doc = n_mst(df_h)
+st.session_state.n_doc = n_mst(df_h)
 def g_pdf(c,e,cd,t,n,tec,p,r):
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
@@ -74,7 +74,6 @@ st.subheader("📝 2. Dados do Atendimento")
 col_tec, col_tipo = st.columns(2)
 with col_tec: tx_tec = st.text_input("Nome do Técnico Responsável: *", key=f"t_{st.session_state.chave_reset}")
 with col_tipo: rd_tip = st.radio("Tipo de Contrato: *", ["Standart", "Master", "Venda"], key=f"r_{st.session_state.chave_reset}")
-st.session_state.n_doc = n_mst(df_h)
 if rd_tip == "Master":
     st.info(f"📋 Número automático: **#{st.session_state.n_doc}**")
     v_num = str(st.session_state.n_doc)
@@ -98,13 +97,10 @@ if st.button("💾 Gravar Dados no Histórico Permanente", use_container_width=T
         requests.get(st.secrets["script_google"], params=pars, timeout=15)
         st.session_state.sv = True
         st.session_state.chave_reset += 1
-        if "n_doc" in st.session_state: del st.session_state.n_doc
-        st.cache_data.clear()
         st.rerun()
     except:
         st.session_state.sv = True
         st.session_state.chave_reset += 1
-        st.cache_data.clear()
         st.rerun()
 if st.session_state.u_pdf is not None:
     st.download_button(label=f"📥 Baixar PDF Gerado para {st.session_state.u_cli}", data=st.session_state.u_pdf, file_name=f"aceite_{st.session_state.u_cli.replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
