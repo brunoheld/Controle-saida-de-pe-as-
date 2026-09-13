@@ -48,8 +48,7 @@ def n_mst(df):
         return int(valores.max()) + 1
     except: return 1
 
-# Se o contador local na memória estiver vazio, calcula lendo a planilha pela primeira vez
-if st.session_state.contador_master_local is彻底_vazio ou st.session_state.contador_master_local is None:
+if st.session_state.contador_master_local is None:
     st.session_state.contador_master_local = n_mst(df_h)
 
 def g_pdf(c,e,cd,t,n,tec,p,r):
@@ -65,7 +64,7 @@ def g_pdf(c,e,cd,t,n,tec,p,r):
     el.extend([tab, Spacer(1, 20)])
     ass_t = "_______________________________________<br/><b>Assinatura do Técnico</b>"
     ass_c = "Nome: _________________________________<br/><br/>Função: _______________________________<br/><br/>RG/CPF: _______________________________<br/><br/>_______________________________________<br/><b>Assinatura do Cliente</b>"
-    t_ass = Table([[Paragraph(ass_t, c_s), Paragraph(ass_c, c_s)]], colWidths=[240, 240])
+    t_ass = Table([[Paragraph(ass_t, c_s), Paragraph(ass_c, c_s)]], colWidths=)
     t_ass.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('PADDING', (0,0), (-1,-1), 0)]))
     el.extend([t_ass])
     doc.build(el)
@@ -117,7 +116,6 @@ if st.button("💾 Gravar Dados no Histórico Permanente", use_container_width=T
         requests.get(st.secrets["script_google"], params=pars, timeout=15)
         st.session_state.sv = True
         st.session_state.chave_reset += 1
-        # Incrementa o número imediatamente na memória ativa local do app para a próxima exibição
         if rd_tip == "Master":
             st.session_state.contador_master_local += 1
         st.rerun()
@@ -125,6 +123,7 @@ if st.button("💾 Gravar Dados no Histórico Permanente", use_container_width=T
         st.session_state.sv = True
         st.session_state.chave_reset += 1
         if rd_tip == "Master":
+            st.session_state.contador_master_service = st.session_state.contador_master_local + 1
             st.session_state.contador_master_local += 1
         st.rerun()
 
