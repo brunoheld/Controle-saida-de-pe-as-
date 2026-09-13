@@ -19,10 +19,9 @@ if "u_cli" not in st.session_state: st.session_state.u_cli = ""
 @st.cache_data(ttl=5)
 def l_cli():
     try:
+        # Usa o link base direto da raiz de forma limpa e estável
         url = st.secrets["link_planilha"]
-        # Extrai o ID da planilha de forma segura, removendo qualquer parâmetro extra do link
-        id_planilha = url.split("/d/")[1].split("/")[0]
-        url_csv = f"https://google.com{id_planilha}/export?format=csv&gid=0"
+        url_csv = "https://google.com"
         df = pd.read_csv(url_csv)
         df.columns = df.columns.str.strip().str.upper()
         return df
@@ -33,9 +32,7 @@ def l_cli():
 def l_hist():
     if st.session_state.h_hide: return pd.DataFrame()
     try:
-        url = st.secrets["link_planilha"]
-        id_planilha = url.split("/d/")[1].split("/")[0]
-        url_csv = f"https://google.com{id_planilha}/export?format=csv&sheet=historico_aceites"
+        url_csv = "https://google.com"
         df = pd.read_csv(url_csv)
         df.columns = df.columns.str.strip().str.upper()
         return df
