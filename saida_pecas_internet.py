@@ -7,7 +7,6 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
-from streamlit_gsheets import GSheetsConnection
 
 st.set_page_config(page_title="Controle", layout="wide")
 st.title("🛠️ Sistema de Aceite de Troca de Peças")
@@ -17,14 +16,12 @@ if "h_hide" not in st.session_state: st.session_state.h_hide = False
 if "u_pdf" not in st.session_state: st.session_state.u_pdf = None
 if "u_cli" not in st.session_state: st.session_state.u_cli = ""
 
-# CONEXÃO OFICIAL QUE RETORNOU OS CLIENTES DA OUTRA VEZ
-conn = st.connection("gsheets", type=GSheetsConnection)
-
+# LEITURA VIA ARQUITETURA BRUTA DE LINK ESTÁTICO (BLINDADO CONTRA ERRO 400 E 404)
 @st.cache_data(ttl=5)
 def l_cli():
     try:
-        url_planilha = st.secrets["link_planilha"]
-        df = conn.read(spreadsheet=url_planilha, worksheet="clientes")
+        url_csv = "https://google.com"
+        df = pd.read_csv(url_csv)
         df.columns = df.columns.str.strip().str.upper()
         return df
     except Exception as e:
@@ -34,8 +31,8 @@ def l_cli():
 def l_hist():
     if st.session_state.h_hide: return pd.DataFrame()
     try:
-        url_planilha = st.secrets["link_planilha"]
-        df = conn.read(spreadsheet=url_planilha, worksheet="historico_aceites")
+        url_csv = "https://google.com"
+        df = pd.read_csv(url_csv)
         df.columns = df.columns.str.strip().str.upper()
         return df
     except:
@@ -129,21 +126,11 @@ if st.button("💾 Gravar Dados no Histórico Permanente", use_container_width=T
     st.session_state.u_pdf = g_pdf(sel_c, sel_e, sel_o, rd_tip, lbl, tx_tec, tx_pec, tx_ras)
     st.session_state.u_cli = sel_c
     
-    pars = {
-        "DATA_GERACAO": datetime.now().strftime("%d/%m/%Y %H:%M"),
-        "CLIENTE": str(sel_c),
-        "ENDERECO": str(sel_e),
-        "CODELEVADOR": str(sel_o),
-        "TIPO_CONTRATO": str(rd_tip),
-        "NUM_CONTROLE": str(v_num),
-        "TECNICO": str(tx_tec),
-        "PECA": str(tx_pec),
-        "RASTREIO": str(tx_ras),
-        "CUSTO": str(nu_cus),
-        "PECA_INSTALADA": "Não"
-    }
+    # Puxa o link do script fixo das secrets de forma direta para a chamada de gravação
+    url_gravar = st.secrets["script_google"] if "script_google" in st.secrets else ""
+    pars = {"DATA_GERACAO": datetime.now().strftime("%d/%m/%Y %H:%M"), "CLIENTE": str(sel_c), "ENDERECO": str(sel_e), "CODELEVADOR": str(sel_o), "TIPO_CONTRATO": str(rd_tip), "NUM_CONTROLE": str(v_num), "TECNICO": str(tx_tec), "PECA": str(tx_pec), "RASTREIO": str(tx_ras), "CUSTO": str(nu_cus), "PECA_INSTALADA": "Não"}
     try:
-        requests.get(st.secrets["script_google"], params=pars, timeout=15)
+        requests.get(url_gravar, params=pars, timeout=15)
         st.session_state.sv = True
         st.session_state.chave_reset += 1
         st.cache_data.clear()
