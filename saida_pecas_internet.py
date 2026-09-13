@@ -12,7 +12,6 @@ if "chave_reset" not in st.session_state: st.session_state.chave_reset = 0
 if "u_pdf" not in st.session_state: st.session_state.u_pdf = None
 if "u_cli" not in st.session_state: st.session_state.u_cli = ""
 if "h_hide" not in st.session_state: st.session_state.h_hide = False
-if "contador_master_local" not in st.session_state: st.session_state.contador_master_local = None
 
 @st.cache_data(ttl=5)
 def l_cli():
@@ -37,9 +36,8 @@ df_h = l_hist()
 
 def n_mst(df):
     try:
-        if df.empty: return 1
+        if df.empty or "TIPO_CONTRATO" not in df.columns or "NUM_CONTROLE" not in df.columns: return 1
         df_limpo = df.copy()
-        if "TIPO_CONTRATO" not in df_limpo.columns or "NUM_CONTROLE" not in df_limpo.columns: return 1
         df_limpo["TIPO_CONTRATO"] = df_limpo["TIPO_CONTRATO"].astype(str).str.strip().str.upper()
         df_m = df_limpo[df_limpo["TIPO_CONTRATO"] == "MASTER"]
         if df_m.empty: return 1
@@ -48,10 +46,8 @@ def n_mst(df):
         return int(valores.max()) + 1
     except: return 1
 
-if st.session_state.contador_master_local is None:
-    st.session_state.contador_master_local = n_mst(df_h)
+n_doc_atual = n_mst(df_h)
 
-# FUNÇÃO DE PDF TOTALMENTE CORRIGIDA E ADAPTADA (SEM COLWIDTHS VAZIO)
 def g_pdf(c,e,cd,t,n,tec,p,r):
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
@@ -63,12 +59,14 @@ def g_pdf(c,e,cd,t,n,tec,p,r):
     tab = Table(mat)
     tab.setStyle(TableStyle([('BACKGROUND',(0,0),(0,-1),colors.HexColor('#F3F4F6')), ('GRID',(0,0), (-1,-1),0.5,colors.HexColor('#D1D5DB')), ('PADDING', (0,0), (-1,-1),6)]))
     el.extend([tab, Spacer(1, 20)])
+    
     ass_t = "_______________________________________<br/><b>Assinatura do Técnico</b>"
     ass_c = "Nome: _________________________________<br/><br/>Função: _______________________________<br/><br/>RG/CPF: _______________________________<br/><br/>_______________________________________<br/><b>Assinatura do Cliente</b>"
-    # Definição segura das larguras das colunas de assinatura para não travar o app
-    t_ass = Table([[Paragraph(ass_t, c_s), Paragraph(ass_c, c_s)]], colWidths=[260, 260])
+    
+    t_ass = Table([[Paragraph(ass_t, c_s), Paragraph(ass_c, c_s)]], colWidths=[240, 240])
     t_ass.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('PADDING', (0,0), (-1,-1), 0)]))
     el.extend([t_ass])
+    
     doc.build(el)
     buf.seek(0)
     return buf.getvalue()
@@ -92,8 +90,8 @@ with col_tec: tx_tec = st.text_input("Nome do Técnico Responsável: *", key=f"t
 with col_tipo: rd_tip = st.radio("Tipo de Contrato: *", ["Standart", "Master", "Venda"], key=f"r_{st.session_state.chave_reset}")
 
 if rd_tip == "Master":
-    st.info(f"📋 Número automático: **#{st.session_state.contador_master_local}**")
-    v_num = str(st.session_state.contador_master_local)
+    st.info(f"📋 Número automático: **#{n_doc_atual}**")
+    v_num = str(n_doc_atual)
 else: v_num = st.text_input("Número do Reparo: *", key=f"rp_{st.session_state.chave_reset}")
 
 col_p, col_r, col_cu = st.columns(3)
@@ -111,7 +109,6 @@ if "sv" in st.session_state and st.session_state.sv:
 
 if st.button("💾 Gravar Dados no Histórico Permanente", use_container_width=True, disabled=not ok):
     lbl = f"Master: #{v_num}" if rd_tip == "Master" else f"Reparo: {v_num}"
-    # Salva o PDF gerado em memória estável antes de limpar a tela
     st.session_state.u_pdf = g_pdf(sel_c, sel_e, sel_o, rd_tip, lbl, tx_tec, tx_pec, tx_ras)
     st.session_state.u_cli = sel_c
     pars = {"DATA_GERACAO": datetime.now().strftime("%d/%m/%Y %H:%M"), "CLIENTE": str(sel_c), "ENDERECO": str(sel_e), "CODELEVADOR": str(sel_o), "TIPO_CONTRATO": str(rd_tip), "NUM_CONTROLE": str(v_num), "TECNICO": str(tx_tec), "PECA": str(tx_pec), "RASTREIO": str(tx_ras), "CUSTO": str(nu_cus), "PECA_INSTALADA": "Não"}
@@ -119,17 +116,14 @@ if st.button("💾 Gravar Dados no Histórico Permanente", use_container_width=T
         requests.get(st.secrets["script_google"], params=pars, timeout=15)
         st.session_state.sv = True
         st.session_state.chave_reset += 1
-        if rd_tip == "Master":
-            st.session_state.contador_master_local += 1
+        st.cache_data.clear()
         st.rerun()
     except:
         st.session_state.sv = True
         st.session_state.chave_reset += 1
-        if rd_tip == "Master":
-            st.session_state.contador_master_local += 1
+        st.cache_data.clear()
         st.rerun()
 
-# BOTOES DE DOWNLOAD DINÂMICOS E ATIVOS APÓS GRAVAÇÃO
 if st.session_state.u_pdf is not None:
     st.download_button(label=f"📥 Baixar PDF Gerado para {st.session_state.u_cli}", data=st.session_state.u_pdf, file_name=f"aceite_{st.session_state.u_cli.replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
 elif ok:
