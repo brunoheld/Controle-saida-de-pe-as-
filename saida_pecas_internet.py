@@ -20,7 +20,10 @@ if "u_cli" not in st.session_state: st.session_state.u_cli = ""
 def l_cli():
     try:
         url = st.secrets["link_planilha"]
-        df = pd.read_csv(f"{url.split('/edit')}/export?format=csv&gid=0")
+        # Extrai o ID da planilha de forma segura, removendo qualquer parâmetro extra do link
+        id_planilha = url.split("/d/")[1].split("/")[0]
+        url_csv = f"https://google.com{id_planilha}/export?format=csv&gid=0"
+        df = pd.read_csv(url_csv)
         df.columns = df.columns.str.strip().str.upper()
         return df
     except Exception as e:
@@ -31,7 +34,9 @@ def l_hist():
     if st.session_state.h_hide: return pd.DataFrame()
     try:
         url = st.secrets["link_planilha"]
-        df = pd.read_csv(f"{url.split('/edit')}/export?format=csv&sheet=historico_aceites")
+        id_planilha = url.split("/d/")[1].split("/")[0]
+        url_csv = f"https://google.com{id_planilha}/export?format=csv&sheet=historico_aceites"
+        df = pd.read_csv(url_csv)
         df.columns = df.columns.str.strip().str.upper()
         return df
     except:
@@ -55,7 +60,6 @@ def n_mst(df):
 
 n_doc_atual = n_mst(df_h)
 
-# FUNÇÃO DO PDF LEVE E BLINDADA CONTRA TRAVAMENTOS
 def g_pdf(c, e, cd, t, n, tec, p, r):
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
@@ -69,7 +73,6 @@ def g_pdf(c, e, cd, t, n, tec, p, r):
     tab.setStyle(TableStyle([('BACKGROUND', (0,0), (0,-1), colors.HexColor('#F3F4F6')), ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D1D5DB')), ('PADDING', (0,0), (-1,-1), 6)]))
     el.extend([tab, Spacer(1, 20)])
     
-    # Textos de validação e assinaturas com espaçamento simples estável
     el.append(Paragraph("<b>VALIDAÇÃO OPERACIONAL E ASSINATURAS</b>", c_s))
     el.append(Spacer(1, 15))
     el.append(Paragraph("_______________________________________<br/><b>Assinatura do Técnico Responsável</b>", c_s))
@@ -124,7 +127,6 @@ if "sv" in st.session_state and st.session_state.sv:
 
 if st.button("💾 Gravar Dados no Histórico Permanente", use_container_width=True, disabled=not ok):
     lbl = f"Master: #{v_num}" if rd_tip == "Master" else f"Reparo: {v_num}"
-    # Armazena o PDF em memória temporária para o download persistir após a limpeza da tela
     st.session_state.u_pdf = g_pdf(sel_c, sel_e, sel_o, rd_tip, lbl, tx_tec, tx_pec, tx_ras)
     st.session_state.u_cli = sel_c
     
@@ -153,7 +155,6 @@ if st.button("💾 Gravar Dados no Histórico Permanente", use_container_width=T
         st.cache_data.clear()
         st.rerun()
 
-# CONTROLE DO BOTÃO DE DOWNLOAD DO PDF
 if st.session_state.u_pdf is not None:
     st.download_button(label=f"📥 Baixar PDF Gerado para {st.session_state.u_cli}", data=st.session_state.u_pdf, file_name=f"aceite_{st.session_state.u_cli.replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
 elif ok:
