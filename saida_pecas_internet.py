@@ -64,7 +64,7 @@ def g_pdf(c,e,cd,t,n,tec,p,r):
     el.extend([tab, Spacer(1, 20)])
     ass_t = "_______________________________________<br/><b>Assinatura do Técnico</b>"
     ass_c = "Nome: _________________________________<br/><br/>Função: _______________________________<br/><br/>RG/CPF: _______________________________<br/><br/>_______________________________________<br/><b>Assinatura do Cliente</b>"
-    t_ass = Table([[Paragraph(ass_t, c_s), Paragraph(ass_c, c_s)]], colWidths=)
+    t_ass = Table([[Paragraph(ass_t, c_s), Paragraph(ass_c, c_s)]], colWidths=[250, 250])
     t_ass.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('PADDING', (0,0), (-1,-1), 0)]))
     el.extend([t_ass])
     doc.build(el)
@@ -123,7 +123,6 @@ if st.button("💾 Gravar Dados no Histórico Permanente", use_container_width=T
         st.session_state.sv = True
         st.session_state.chave_reset += 1
         if rd_tip == "Master":
-            st.session_state.contador_master_service = st.session_state.contador_master_local + 1
             st.session_state.contador_master_local += 1
         st.rerun()
 
