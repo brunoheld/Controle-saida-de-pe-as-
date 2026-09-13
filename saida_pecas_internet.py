@@ -1,4 +1,4 @@
-import streamlit as st, pandas as pd, io, requests
+import streamlit as st, pandas as pd, io, requests, time
 from datetime import datetime
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
@@ -12,28 +12,30 @@ if "chave_reset" not in st.session_state: st.session_state.chave_reset = 0
 if "u_pdf" not in st.session_state: st.session_state.u_pdf = None
 if "u_cli" not in st.session_state: st.session_state.u_cli = ""
 if "h_hide" not in st.session_state: st.session_state.h_hide = False
-if "contador_master_local" not in st.session_state: st.session_state.contador_master_local = None
 
-@st.cache_data(ttl=1)
+@st.cache_data(ttl=5)
 def l_cli():
     try:
         url = st.secrets["link_planilha"]
-        df = pd.read_csv(f"{url.split('/edit')[0]}/export?format=csv&gid=0")
+        df = pd.read_csv(f"{url.split('/edit')}/export?format=csv&gid=0")
         df.columns = df.columns.str.strip().str.upper()
         return df
     except: return pd.DataFrame(columns=["CLIENTE","ENDERECO","CODELEVADOR"])
 
-def l_hist():
+# REMOÇÃO COMPLETA DO CACHE PARA FORÇAR LEITURA EM TEMPO REAL DA PLANILHA
+def l_hist_realtime():
     if st.session_state.h_hide: return pd.DataFrame()
     try:
         url = st.secrets["link_planilha"]
-        df = pd.read_csv(f"{url.split('/edit')[0]}/export?format=csv&sheet=historico_aceites")
+        # Injeta um timestamp dinâmico na URL para burlar o cache do Google e do Streamlit
+        url_csv = f"{url.split('/edit')}/export?format=csv&sheet=historico_aceites&nocache={time.time()}"
+        df = pd.read_csv(url_csv)
         df.columns = df.columns.str.strip().str.upper()
         return df
     except: return pd.DataFrame()
 
 df_c = l_cli()
-df_h = l_hist()
+df_h = l_hist_realtime()
 
 def n_mst(df):
     try:
@@ -48,8 +50,8 @@ def n_mst(df):
         return int(valores.max()) + 1
     except: return 1
 
-if st.session_state.contador_master_local is None:
-    st.session_state.contador_master_local = n_mst(df_h)
+# O número master é calculado diretamente do histórico em tempo real lido da nuvem
+proximo_master_real = n_mst(df_h)
 
 def g_pdf(c,e,cd,t,n,tec,p,r):
     buf = io.BytesIO()
@@ -64,7 +66,8 @@ def g_pdf(c,e,cd,t,n,tec,p,r):
     el.extend([tab, Spacer(1, 20)])
     ass_t = "_______________________________________<br/><b>Assinatura do Técnico</b>"
     ass_c = "Nome: _________________________________<br/><br/>Função: _______________________________<br/><br/>RG/CPF: _______________________________<br/><br/>_______________________________________<br/><b>Assinatura do Cliente</b>"
-    t_ass = Table([[Paragraph(ass_t, c_s), Paragraph(ass_c, c_s)]], colWidths=[250, 250])
+    # Definição estrita das larguras das colunas do PDF (260 pontos para cada uma)
+    t_ass = Table([[Paragraph(ass_t, c_s), Paragraph(ass_c, c_s)]], colWidths=[260, 260])
     t_ass.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('PADDING', (0,0), (-1,-1), 0)]))
     el.extend([t_ass])
     doc.build(el)
@@ -90,8 +93,8 @@ with col_tec: tx_tec = st.text_input("Nome do Técnico Responsável: *", key=f"t
 with col_tipo: rd_tip = st.radio("Tipo de Contrato: *", ["Standart", "Master", "Venda"], key=f"r_{st.session_state.chave_reset}")
 
 if rd_tip == "Master":
-    st.info(f"📋 Número automático: **#{st.session_state.contador_master_local}**")
-    v_num = str(st.session_state.contador_master_local)
+    st.info(f"📋 Número automático: **#{proximo_master_real}**")
+    v_num = str(proximo_master_real)
 else: v_num = st.text_input("Número do Reparo: *", key=f"rp_{st.session_state.chave_reset}")
 
 col_p, col_r, col_cu = st.columns(3)
@@ -116,14 +119,10 @@ if st.button("💾 Gravar Dados no Histórico Permanente", use_container_width=T
         requests.get(st.secrets["script_google"], params=pars, timeout=15)
         st.session_state.sv = True
         st.session_state.chave_reset += 1
-        if rd_tip == "Master":
-            st.session_state.contador_master_local += 1
         st.rerun()
     except:
         st.session_state.sv = True
         st.session_state.chave_reset += 1
-        if rd_tip == "Master":
-            st.session_state.contador_master_local += 1
         st.rerun()
 
 if st.session_state.u_pdf is not None:
