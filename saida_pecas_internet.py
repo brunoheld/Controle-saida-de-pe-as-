@@ -11,13 +11,14 @@ from reportlab.lib import colors
 st.set_page_config(page_title="Controle de Troca de Peças", layout="wide")
 st.title("🛠️ Sistema de Aceite de Troca de Peças")
 
-# --- LEITURA DA ABA DE CLIENTES (MÉTODO TÉCNICO ULTRA-ESTRITO) ---
+# --- LEITURA ISOLADA POR GID (BLINDADO CONTRA ERRO 400/404) ---
 @st.cache_data(ttl=10)
 def carregar_dados_clientes():
     try:
-        # Puxa o link direto da raiz dos Secrets sem passar por sub-blocos instáveis
         url = st.secrets["link_planilha"]
-        url_csv = f"{url.replace('/edit', '')}/gviz/tq?tqx=out:csv&sheet=clientes"
+        base_url = url.split("/edit")[0]
+        # Força o Google a entregar estritamente a aba de clientes (gid=0)
+        url_csv = f"{base_url}/export?format=csv&gid=0"
         df = pd.read_csv(url_csv)
         df.columns = df.columns.str.strip().str.upper()
         return df
@@ -25,12 +26,13 @@ def carregar_dados_clientes():
         st.error(f"Erro técnico ao ler os dados de clientes: {e}")
         return pd.DataFrame(columns=["CLIENTE", "ENDERECO", "CODELEVADOR"])
 
-# --- LEITURA DO HISTÓRICO NO RODAPÉ ---
 @st.cache_data(ttl=2)
 def carregar_historico():
     try:
         url = st.secrets["link_planilha"]
-        url_csv = f"{url.replace('/edit', '')}/gviz/tq?tqx=out:csv&sheet=historico_aceites"
+        base_url = url.split("/edit")[0]
+        # Força o Google a entregar estritamente a aba de historico (substitui pelo formato correto no Passo 2)
+        url_csv = f"{base_url}/export?format=csv&sheet=historico_aceites"
         df = pd.read_csv(url_csv)
         df.columns = df.columns.str.strip().str.upper()
         return df
@@ -163,8 +165,6 @@ if btn_gravar:
             st.session_state.sucesso_salvar = True
             st.cache_data.clear()
             st.rerun()
-    else:
-        st.error("Erro técnico: Link 'script_google' ausente nos Secrets.")
 
 if campos_validos:
     num_exib = f"Controle Master: #{num_controle_salvar}" if tipo_contrato == "Master" else f"Reparo: {num_controle_salvar}"
@@ -181,3 +181,4 @@ if not df_visualizacao.empty:
     st.dataframe(df_visualizacao, use_container_width=True)
 else:
     st.info("Sincronizando com a base de dados do Google Sheets...")
+    
