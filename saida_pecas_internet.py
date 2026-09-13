@@ -11,22 +11,25 @@ from reportlab.lib import colors
 st.set_page_config(page_title="Controle de Troca de Peças", layout="wide")
 st.title("🛠️ Sistema de Aceite de Troca de Peças")
 
+# --- LEITURA DA ABA DE CLIENTES (MÉTODO TÉCNICO ULTRA-ESTRITO) ---
 @st.cache_data(ttl=10)
 def carregar_dados_clientes():
     try:
-        url = st.secrets["connections"]["gsheets"]["spreadsheet"]
+        # Puxa o link direto da raiz dos Secrets sem passar por sub-blocos instáveis
+        url = st.secrets["link_planilha"]
         url_csv = f"{url.replace('/edit', '')}/gviz/tq?tqx=out:csv&sheet=clientes"
         df = pd.read_csv(url_csv)
         df.columns = df.columns.str.strip().str.upper()
         return df
     except Exception as e:
-        st.error(f"Erro ao ler os dados de clientes da planilha: {e}")
+        st.error(f"Erro técnico ao ler os dados de clientes: {e}")
         return pd.DataFrame(columns=["CLIENTE", "ENDERECO", "CODELEVADOR"])
 
+# --- LEITURA DO HISTÓRICO NO RODAPÉ ---
 @st.cache_data(ttl=2)
 def carregar_historico():
     try:
-        url = st.secrets["connections"]["gsheets"]["spreadsheet"]
+        url = st.secrets["link_planilha"]
         url_csv = f"{url.replace('/edit', '')}/gviz/tq?tqx=out:csv&sheet=historico_aceites"
         df = pd.read_csv(url_csv)
         df.columns = df.columns.str.strip().str.upper()
@@ -136,29 +139,32 @@ if "sucesso_salvar" in st.session_state and st.session_state.sucesso_salvar:
 btn_gravar = st.button("💾 Gravar Dados no Histórico Permanente", use_container_width=True, disabled=not campos_validos)
 
 if btn_gravar:
-    url_gravar = "https://google.com"
-    params_envio = {
-        "DATA_GERACAO": datetime.now().strftime("%d/%m/%Y %H:%M"),
-        "CLIENTE": str(cliente_selecionado),
-        "ENDERECO": str(endereco_selecionado),
-        "CODELEVADOR": str(codigo_selecionado),
-        "TIPO_CONTRATO": str(tipo_contrato),
-        "NUM_CONTROLE": str(num_controle_salvar),
-        "TECNICO": str(nome_tecnico),
-        "PECA": str(nome_peca),
-        "RASTREIO": str(codigo_rastreio),
-        "CUSTO": str(custo_peca),
-        "PECA_INSTALADA": "Não"
-    }
-    try:
-        resposta = requests.get(url_gravar, params=params_envio, timeout=15)
-        st.session_state.sucesso_salvar = True
-        st.cache_data.clear()
-        st.rerun()
-    except Exception:
-        st.session_state.sucesso_salvar = True
-        st.cache_data.clear()
-        st.rerun()
+    url_gravar = st.secrets["script_google"] if "script_google" in st.secrets else ""
+    if url_gravar:
+        params_envio = {
+            "DATA_GERACAO": datetime.now().strftime("%d/%m/%Y %H:%M"),
+            "CLIENTE": str(cliente_selecionado),
+            "ENDERECO": str(endereco_selecionado),
+            "CODELEVADOR": str(codigo_selecionado),
+            "TIPO_CONTRATO": str(tipo_contrato),
+            "NUM_CONTROLE": str(num_controle_salvar),
+            "TECNICO": str(nome_tecnico),
+            "PECA": str(nome_peca),
+            "RASTREIO": str(codigo_rastreio),
+            "CUSTO": str(custo_peca),
+            "PECA_INSTALADA": "Não"
+        }
+        try:
+            resposta = requests.get(url_gravar, params=params_envio, timeout=15)
+            st.session_state.sucesso_salvar = True
+            st.cache_data.clear()
+            st.rerun()
+        except Exception:
+            st.session_state.sucesso_salvar = True
+            st.cache_data.clear()
+            st.rerun()
+    else:
+        st.error("Erro técnico: Link 'script_google' ausente nos Secrets.")
 
 if campos_validos:
     num_exib = f"Controle Master: #{num_controle_salvar}" if tipo_contrato == "Master" else f"Reparo: {num_controle_salvar}"
@@ -166,7 +172,7 @@ if campos_validos:
     st.write(" ")
     st.download_button(label="📥 Clique Aqui para Efetuar o Download do PDF Gerado", data=pdf_bytes, file_name=f"aceite_{cliente_selecionado.replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
 else:
-    st.warning("⚠️ Preencha todos os campos obrigatórios (*) e insira um valor em Real maior que R$ 0,00 para liberar as opções de gravação and download.")        
+    st.warning("⚠️ Preencha todos os campos obrigatórios (*) e insira um valor em Real maior que R$ 0,00 para liberar as opções de gravação.")        
 
 st.write(" ")
 st.write("---")
@@ -174,4 +180,4 @@ st.subheader("📋 Histórico de Aceites Gravados em Tempo Real")
 if not df_visualizacao.empty:
     st.dataframe(df_visualizacao, use_container_width=True)
 else:
-    st.info("Nenhum registro encontrado ou sincronizando com a base de dados do Google Sheets...")
+    st.info("Sincronizando com a base de dados do Google Sheets...")
