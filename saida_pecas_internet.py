@@ -43,11 +43,11 @@ def g_pdf(c,e,cd,t,n,tec,p,r):
     el = [Paragraph("<b>TERMO DE ACEITE DE TROCA DE PEÇAS</b>", t_s), Spacer(1, 5)]
     mat = [[Paragraph(f"<b>{k}:</b>", c_s), Paragraph(str(v), c_s)] for k, v in [("Cliente",c),("Endereço",e),("Cód. Elevador",cd),("Registro",f"{t} ({n})"),("Técnico",tec),("Peça",p),("Rastreio",r)]]
     tab = Table(mat)
-    tab.setStyle(TableStyle([('BACKGROUND',(0,0),(0,-1),colors.HexColor('#F3F4F6')), ('GRID',(0,0),(-1,-1),0.5,colors.HexColor('#D1D5DB')), ('PADDING',(0,0),(-1,-1),6)]))
+    tab.setStyle(TableStyle([('BACKGROUND',(0,0),(0,-1),colors.HexColor('#F3F4F6')), ('GRID',(0,0), (-1,-1),0.5,colors.HexColor('#D1D5DB')), ('PADDING',(0,0), (-1,-1),6)]))
     el.extend([tab, Spacer(1, 20)])
     ass_t = "_______________________________________<br/><b>Assinatura do Técnico</b>"
     ass_c = "Nome: _________________________________<br/><br/>Função: _______________________________<br/><br/>RG/CPF: _______________________________<br/><br/>_______________________________________<br/><b>Assinatura do Cliente</b>"
-    t_ass = Table([[Paragraph(ass_t, c_s), Paragraph(ass_c, c_s)]], colWidths=[240, 240])
+    t_ass = Table([[Paragraph(ass_t, c_s), Paragraph(ass_c, c_s)]], colWidths=[260, 260])
     t_ass.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('PADDING', (0,0), (-1,-1), 0)]))
     el.extend([t_ass])
     doc.build(el)
@@ -107,7 +107,7 @@ elif ok:
     st.download_button(label="📥 Baixar PDF Gerado", data=g_pdf(sel_c, sel_e, sel_o, rd_tip, lbl, tx_tec, tx_pec, tx_ras), file_name=f"aceite_{sel_c.replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
 else: st.warning("⚠️ Preencha todos os campos obrigatórios.")        
 st.write("---")
-t_col, b_col = st.columns()
+t_col, b_col = st.columns(2)
 with t_col: st.subheader("📋 Histórico em Tempo Real")
 with b_col:
     if st.button("🗑️ Limpar Histórico do Navegador", type="primary", use_container_width=True):
