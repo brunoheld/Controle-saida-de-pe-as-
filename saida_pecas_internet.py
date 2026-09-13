@@ -22,12 +22,10 @@ def l_cli():
         return df
     except: return pd.DataFrame(columns=["CLIENTE","ENDERECO","CODELEVADOR"])
 
-# REMOÇÃO COMPLETA DO CACHE PARA FORÇAR LEITURA EM TEMPO REAL DA PLANILHA
 def l_hist_realtime():
     if st.session_state.h_hide: return pd.DataFrame()
     try:
         url = st.secrets["link_planilha"]
-        # Injeta um timestamp dinâmico na URL para burlar o cache do Google e do Streamlit
         url_csv = f"{url.split('/edit')}/export?format=csv&sheet=historico_aceites&nocache={time.time()}"
         df = pd.read_csv(url_csv)
         df.columns = df.columns.str.strip().str.upper()
@@ -50,7 +48,6 @@ def n_mst(df):
         return int(valores.max()) + 1
     except: return 1
 
-# O número master é calculado diretamente do histórico em tempo real lido da nuvem
 proximo_master_real = n_mst(df_h)
 
 def g_pdf(c,e,cd,t,n,tec,p,r):
@@ -66,7 +63,6 @@ def g_pdf(c,e,cd,t,n,tec,p,r):
     el.extend([tab, Spacer(1, 20)])
     ass_t = "_______________________________________<br/><b>Assinatura do Técnico</b>"
     ass_c = "Nome: _________________________________<br/><br/>Função: _______________________________<br/><br/>RG/CPF: _______________________________<br/><br/>_______________________________________<br/><b>Assinatura do Cliente</b>"
-    # Definição estrita das larguras das colunas do PDF (260 pontos para cada uma)
     t_ass = Table([[Paragraph(ass_t, c_s), Paragraph(ass_c, c_s)]], colWidths=[260, 260])
     t_ass.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('PADDING', (0,0), (-1,-1), 0)]))
     el.extend([t_ass])
@@ -133,12 +129,6 @@ elif ok:
 else: st.warning("⚠️ Preencha todos os campos obrigatórios.")        
 
 st.write("---")
-t_col, b_col = st.columns(2)
-with t_col: st.subheader("📋 Histórico em Tempo Real")
-with b_col:
-    if st.button("🗑️ Limpar Histórico do Navegador", type="primary", use_container_width=True):
-        st.session_state.h_hide = True
-        st.rerun()
-
+st.subheader("📋 Histórico em Tempo Real")
 if not st.session_state.h_hide and not df_h.empty: st.dataframe(df_h, use_container_width=True)
 else: st.info("Histórico ocultado ou aguardando dados...")
