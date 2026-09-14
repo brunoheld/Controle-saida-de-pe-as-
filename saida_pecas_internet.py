@@ -8,12 +8,16 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from streamlit_gsheets import GSheetsConnection
 
-# --- LAYOUT E CUSTOMIZAÇÃO ESTILO MICROSOFT FORMS ---
+# Configuração da página e centralização estilo folha do MS Forms
 st.set_page_config(page_title="Controle de Troca de Peças", layout="centered")
 
+# Injeção de CSS para recriar as bordas, sombras e cabeçalho do Microsoft Forms
 st.markdown("""
     <style>
-        .stApp { background-color: #F3F2F1 !important; }
+        header {visibility: hidden;}
+        footer {visibility: hidden;}
+        
+        /* Simula o bloco flutuante do formulário Microsoft */
         .block-container {
             background-color: #FFFFFF !important;
             padding: 3rem 4rem !important;
@@ -21,8 +25,9 @@ st.markdown("""
             margin-bottom: 2rem !important;
             border-radius: 4px !important;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
-            max-width: 740px !important;
         }
+        
+        /* Barra lateral decorativa padrão do MS Forms no título principal */
         h1 {
             color: #0078D4 !important;
             font-family: 'Segoe UI', sans-serif !important;
@@ -32,34 +37,19 @@ st.markdown("""
             padding-left: 15px !important;
             margin-bottom: 1.5rem !important;
         }
-        h3 {
-            color: #323130 !important;
-            font-family: 'Segoe UI', sans-serif !important;
-            font-size: 16px !important;
-            font-weight: 600 !important;
-            margin-top: 1.5rem !important;
-        }
-        label, .stWidgetLabel p {
-            color: #323130 !important;
-            font-family: 'Segoe UI', sans-serif !important;
-            font-size: 14px !important;
-            font-weight: 600 !important;
-        }
-        div[data-baseweb="input"], div[data-baseweb="select"] {
-            border: 1px solid #8A8886 !important;
-            border-radius: 2px !important;
-        }
+        
+        /* Estilização dos botões para a cor Teal clássica da Microsoft */
         button[data-testid="baseButton-secondary"], button[data-testid="baseButton-primary"] {
             background-color: #008272 !important;
             color: #FFFFFF !important;
+            border: none !important;
             border-radius: 2px !important;
             font-weight: 600 !important;
-            use-container-width: true !important;
         }
         button[data-testid="baseButton-secondary"]:hover, button[data-testid="baseButton-primary"]:hover {
             background-color: #006B5E !important;
+            color: #FFFFFF !important;
         }
-        header, footer {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
 
