@@ -8,70 +8,21 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from streamlit_gsheets import GSheetsConnection
 
-# Configuração da página centralizada padrão do MS Forms
-st.set_page_config(page_title="Controle de Troca de Peças", layout="centered")
+# Configuração da página em modo normal para controle manual de margem
+st.set_page_config(page_title="Controle de Troca de Peças", layout="wide")
 
-# FORÇAMENTO DE CSS COM MÁXIMA PRIORIDADE EM ELEMENTOS INTERNOS (Layout Microsoft Forms)
+# Remove cabeçalhos padrão do Streamlit na força
+st.markdown("<style>header, footer, [data-testid='stDecoration'] {display: none !important;}</style>", unsafe_allow_html=True)
+
+# TÍTULO ESTILIZADO COM A BARRA LATERAL VERDE DO MICROSOFT FORMS
 st.markdown("""
-    <style>
-        /* Desativa e esconde cabeçalhos e decorações do Streamlit */
-        header, footer, [data-testid="stDecoration"], [data-testid="stHeader"] { 
-            visibility: hidden !important; 
-            height: 0px !important; 
-            display: none !important; 
-        }
-        
-        /* Pinta o fundo geral do navegador com o cinza clássico da Microsoft */
-        [data-testid="stAppViewContainer"], [data-testid="stAppViewMainObj"], .stApp, .main, html, body {
-            background-color: #F3F2F1 !important;
-            background: #F3F2F1 !important;
-        }
-        
-        /* Transforma o bloco de inputs em uma folha branca suspensa com bordas e sombra */
-        [data-testid="stVerticalBlock"] > div:has(.block-container), .block-container {
-            background-color: #FFFFFF !important;
-            background: #FFFFFF !important;
-            padding: 3rem 4rem !important;
-            margin: 2rem auto !important;
-            border-radius: 4px !important;
-            box-shadow: 0 6px 16px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04) !important;
-            max-width: 740px !important;
-        }
-        
-        /* Insere a barra vertical decorativa Teal/Esmeralda ao lado do título */
-        h1 {
-            color: #0078D4 !important;
-            font-family: 'Segoe UI', system-ui, sans-serif !important;
-            font-size: 26px !important;
-            font-weight: 600 !important;
-            border-left: 6px solid #008272 !important;
-            padding-left: 15px !important;
-            margin-bottom: 2rem !important;
-        }
-        
-        h3, label, .stWidgetLabel p {
-            color: #323130 !important;
-            font-family: 'Segoe UI', system-ui, sans-serif !important;
-            font-size: 14px !important;
-            font-weight: 600 !important;
-        }
-        
-        /* Altera o estilo e as cores de todos os botões para o padrão Microsoft */
-        button[data-testid="baseButton-secondary"], button[data-testid="baseButton-primary"] {
-            background-color: #008272 !important;
-            color: #FFFFFF !important;
-            border: none !important;
-            border-radius: 2px !important;
-            font-weight: 600 !important;
-        }
-        button[data-testid="baseButton-secondary"]:hover, button[data-testid="baseButton-primary"]:hover {
-            background-color: #006B5E !important;
-            color: #FFFFFF !important;
-        }
-    </style>
+    <div style='border-left: 6px solid #008272; padding-left: 15px; margin-bottom: 30px; margin-top: 10px;'>
+        <h1 style='color: #0078D4; font-family: \"Segoe UI\", sans-serif; font-size: 28px; font-weight: 600; margin: 0;'>
+            Sistema de Aceite de Troca de Peças
+        </h1>
+    </div>
 """, unsafe_allow_html=True)
 
-st.title("Sistema de Aceite de Troca de Peças")
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 @st.cache_data(ttl=300)
@@ -140,55 +91,59 @@ def gerar_pdf_bytes(cl, ed, co, tp, nu, te, pe, ra):
 st.sidebar.title("📌 Menu de Opções")
 opcao_menu = st.sidebar.radio("Selecione a tela:", ["📝 Gerar Aceite", "🔍 Consultar Histórico"])
 if opcao_menu == "📝 Gerar Aceite":
-    st.subheader("1. Identificação do Elevador")
-    opcoes_cl = ["Selecione..."] + list(df_clientes["CLIENTE"].dropna().unique()) if "CLIENTE" in df_clientes.columns else ["Selecione..."]
-    cl_sel = st.selectbox("Escolha o Cliente: *", opcoes_cl)
+    # CRIA MARGENS LATERAIS NATIIVAS PARA FORÇAR CENTRALIZAÇÃO DE FOLHA (Estilo MS Forms)
+    margin_esquerda, corpo_central, margin_direita = st.columns([1, 4, 1])
+    
+    with corpo_central:
+        st.subheader("1. Identificação do Elevador")
+        opcoes_cl = ["Selecione..."] + list(df_clientes["CLIENTE"].dropna().unique()) if "CLIENTE" in df_clientes.columns else ["Selecione..."]
+        cl_sel = st.selectbox("Escolha o Cliente: *", opcoes_cl)
 
-    df_f_cl = df_clientes[df_clientes["CLIENTE"] == cl_sel] if cl_sel != "Selecione..." else pd.DataFrame()
-    opcoes_ed = list(df_f_cl["ENDERECO"].dropna().unique()) if not df_f_cl.empty else ["Aguardando cliente..."]
-    ed_sel = st.selectbox("Escolha o Endereço: *", opcoes_ed, disabled=df_f_cl.empty)
+        df_f_cl = df_clientes[df_clientes["CLIENTE"] == cl_sel] if cl_sel != "Selecione..." else pd.DataFrame()
+        opcoes_ed = list(df_f_cl["ENDERECO"].dropna().unique()) if not df_f_cl.empty else ["Aguardando cliente..."]
+        ed_sel = st.selectbox("Escolha o Endereço: *", opcoes_ed, disabled=df_f_cl.empty)
 
-    df_f_ed = df_f_cl[df_f_cl["ENDERECO"] == ed_sel] if not df_f_cl.empty else pd.DataFrame()
-    opcoes_co = list(df_f_ed["CODELEVADOR"].dropna().unique()) if not df_f_ed.empty else ["Aguardando endereço..."]
-    co_sel = st.selectbox("Código do Elevador: *", opcoes_co, disabled=df_f_ed.empty)
+        df_f_ed = df_f_cl[df_f_cl["ENDERECO"] == ed_sel] if not df_f_cl.empty else pd.DataFrame()
+        opcoes_co = list(df_f_ed["CODELEVADOR"].dropna().unique()) if not df_f_ed.empty else ["Aguardando endereço..."]
+        co_sel = st.selectbox("Código do Elevador: *", opcoes_co, disabled=df_f_ed.empty)
 
-    st.write(" ")
-    st.subheader("2. Dados do Atendimento e Tipo de Registro")
-    te_nome = st.text_input("Nome do Técnico Responsável: *")
-    tp_contrato = st.radio("Tipo de Registro / Contrato: *", ["Standart", "Master", "Venda"])
-
-    st.session_state.numero_documento = obter_proximo_numero_master()
-    if tp_contrato == "Master":
-        st.info(f"📋 Contrato Master ativo. Número de controle automático: # {st.session_state.numero_documento}")
-        nu_salvar = str(st.session_state.numero_documento)
-    else:
-        nu_salvar = st.text_input("Número do Reparo: *")
-
-    pe_nome = st.text_input("Nome / Descrição da Peça: *")
-    ra_codigo = st.text_input("Código de Rastreio da Peça: *")
-    cu_peca = st.number_input("Custo da Peça (R$): *", min_value=0.0, step=0.01, format="%.2f")
-
-    st.write(" ")
-    st.subheader("3. Emissão e Salvamento Permanente")
-    ok = cl_sel != "Selecione..." and bool(te_nome.strip()) and bool(pe_nome.strip()) and bool(ra_codigo.strip()) and cu_peca > 0.0 and bool(str(nu_salvar).strip())
-
-    if st.button("💾 Enviar e Gravar Dados no Histórico Permanente", use_container_width=True, disabled=not ok):
-        rec = {"DATA_GERACAO": datetime.now().strftime("%d/%m/%Y %H:%M"), "CLIENTE": str(cl_sel), "ENDERECO": str(ed_sel), "CODELEVADOR": str(co_sel), "TIPO_CONTRATO": str(tp_contrato), "NUM_CONTROLE": str(nu_salvar), "TECNICO": str(te_nome), "PECA": str(pe_nome), "RASTREIO": str(ra_codigo), "CUSTO": float(cu_peca), "PECA_INSTALADA": "Não"}
-        try:
-            df_h = conn.read(worksheet="historico_aceites", ttl=0)
-            conn.update(worksheet="historico_aceites", data=pd.concat([df_h, pd.DataFrame([rec])], ignore_index=True))
-            st.success("Sucesso! Registro salvo diretamente no Google Sheets.")
-            if "numero_documento" in st.session_state: del st.session_state.numero_documento
-        except Exception as e:
-            st.error(f"Erro ao salvar na planilha: {e}.")
-
-    if ok:
-        exib_pdf = f"Controle Master: #{nu_salvar}" if tp_contrato == "Master" else f"Reparo: {nu_salvar}"
-        pdf_b = gerar_pdf_bytes(cl_sel, ed_sel, co_sel, tp_contrato, exib_pdf, te_nome, pe_nome, ra_codigo)
         st.write(" ")
-        st.download_button(label="📥 Efetuar o Download do PDF Gerado", data=pdf_b, file_name=f"aceite_{cl_sel.replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
-    else:
-        st.warning("⚠️ Preencha todos os campos obrigatórios (*) e insira um valor maior que R$ 0,00.")
+        st.subheader("2. Dados do Atendimento e Tipo de Registro")
+        te_nome = st.text_input("Nome do Técnico Responsável: *")
+        tp_contrato = st.radio("Tipo de Registro / Contrato: *", ["Standart", "Master", "Venda"])
+
+        st.session_state.numero_documento = obter_proximo_numero_master()
+        if tp_contrato == "Master":
+            st.info(f"📋 Contrato Master ativo. Número de controle automático: # {st.session_state.numero_documento}")
+            nu_salvar = str(st.session_state.numero_documento)
+        else:
+            nu_salvar = st.text_input("Número do Reparo: *")
+
+        pe_nome = st.text_input("Nome / Descrição da Peça: *")
+        ra_codigo = st.text_input("Código de Rastreio da Peça: *")
+        cu_peca = st.number_input("Custo da Peça (R$): *", min_value=0.0, step=0.01, format="%.2f")
+
+        st.write(" ")
+        st.subheader("3. Emissão e Salvamento Permanente")
+        ok = cl_sel != "Selecione..." and bool(te_nome.strip()) and bool(pe_nome.strip()) and bool(ra_codigo.strip()) and cu_peca > 0.0 and bool(str(nu_salvar).strip())
+
+        if st.button("💾 Enviar e Gravar Dados no Histórico Permanente", use_container_width=True, disabled=not ok):
+            rec = {"DATA_GERACAO": datetime.now().strftime("%d/%m/%Y %H:%M"), "CLIENTE": str(cl_sel), "ENDERECO": str(ed_sel), "CODELEVADOR": str(co_sel), "TIPO_CONTRATO": str(tp_contrato), "NUM_CONTROLE": str(nu_salvar), "TECNICO": str(te_nome), "PECA": str(pe_nome), "RASTREIO": str(ra_codigo), "CUSTO": float(cu_peca), "PECA_INSTALADA": "Não"}
+            try:
+                df_h = conn.read(worksheet="historico_aceites", ttl=0)
+                conn.update(worksheet="historico_aceites", data=pd.concat([df_h, pd.DataFrame([rec])], ignore_index=True))
+                st.success("Sucesso! Registro salvo diretamente no Google Sheets.")
+                if "numero_documento" in st.session_state: del st.session_state.numero_documento
+            except Exception as e:
+                st.error(f"Erro ao salvar na planilha: {e}.")
+
+        if ok:
+            exib_pdf = f"Controle Master: #{nu_salvar}" if tp_contrato == "Master" else f"Reparo: {nu_salvar}"
+            pdf_b = gerar_pdf_bytes(cl_sel, ed_sel, co_sel, tp_contrato, exib_pdf, te_nome, pe_nome, ra_codigo)
+            st.write(" ")
+            st.download_button(label="📥 Efetuar o Download do PDF Gerado", data=pdf_b, file_name=f"aceite_{cl_sel.replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
+        else:
+            st.warning("⚠️ Preencha todos os campos obrigatórios (*) e insira um valor maior que R$ 0,00.")
 
 elif opcao_menu == "🔍 Consultar Histórico":
     st.subheader("Histórico de Registros")
