@@ -8,34 +8,34 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from streamlit_gsheets import GSheetsConnection
 
-# Configuração da página e centralização estilo folha do MS Forms
+# Configuração da página centralizada padrão do MS Forms
 st.set_page_config(page_title="Controle de Troca de Peças", layout="centered")
 
-# INJEÇÃO RADICAL DE INTERFACE MICROSOFT FORMS (Força o layout mesmo com bloqueios)
+# INJEÇÃO COMPLETA PARA FORÇAR O LAYOUT MICROSOFT FORMS (Quebra o bloqueio do servidor)
 st.markdown("""
     <style>
-        /* Esconde elementos nativos do Streamlit */
+        /* Remove cabeçalhos e decorações nativas do Streamlit */
         header, footer, [data-testid="stDecoration"] { visibility: hidden !important; height: 0px !important; }
         
-        /* Força o fundo cinza claro clássico do Microsoft Forms em absolutamente tudo */
-        html, body, .stMain, div[data-testid="stAppViewMainObj"], .stApp, .main, [data-testid="stApp"] {
+        /* Força a cor de fundo cinza claro característica do MS Forms */
+        .stApp, [data-testid="stAppViewMainObj"], .main, .stMain, html, body {
             background-color: #F3F2F1 !important;
         }
         
-        /* Converte a área de conteúdo em um Bloco/Folha flutuante branca com sombra e tamanho fixo */
+        /* Converte a área de digitação em uma folha branca flutuante com sombra */
         .block-container {
             background-color: #FFFFFF !important;
             padding: 3rem 4rem !important;
-            margin: 4rem auto !important;
+            margin: 2rem auto !important;
             border-radius: 4px !important;
-            box-shadow: 0 6px 16px rgba(0,0,0,0.08), 0 0 4px rgba(0,0,0,0.04) !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06), 0 0 2px rgba(0,0,0,0.04) !important;
             max-width: 740px !important;
         }
         
-        /* Adiciona a icônica barra vertical Teal/Esmeralda do MS Forms ao lado do título */
+        /* Adiciona a icônica barra vertical Teal/Verde ao lado do título */
         h1 {
             color: #0078D4 !important;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+            font-family: 'Segoe UI', sans-serif !important;
             font-size: 26px !important;
             font-weight: 600 !important;
             border-left: 6px solid #008272 !important;
@@ -43,17 +43,13 @@ st.markdown("""
             margin-bottom: 2rem !important;
         }
         
-        /* Estiliza os subtítulos de seções como perguntas do Forms */
         h3 {
             color: #323130 !important;
             font-family: 'Segoe UI', sans-serif !important;
             font-size: 16px !important;
             font-weight: 600 !important;
-            margin-top: 2rem !important;
-            margin-bottom: 1rem !important;
         }
         
-        /* Customiza as Labels (textos das perguntas) */
         label, .stWidgetLabel p {
             color: #323130 !important;
             font-family: 'Segoe UI', sans-serif !important;
@@ -61,25 +57,17 @@ st.markdown("""
             font-weight: 600 !important;
         }
         
-        /* Modifica os botões para a paleta de cores original Teal do Forms */
+        /* Estiliza os botões com a cor clássica Teal da Microsoft */
         button[data-testid="baseButton-secondary"], button[data-testid="baseButton-primary"] {
             background-color: #008272 !important;
             color: #FFFFFF !important;
             border: none !important;
             border-radius: 2px !important;
             font-weight: 600 !important;
-            transition: background-color 0.2s !important;
         }
         button[data-testid="baseButton-secondary"]:hover, button[data-testid="baseButton-primary"]:hover {
             background-color: #006B5E !important;
             color: #FFFFFF !important;
-        }
-        
-        /* Estilização das caixas de mensagem/avisos */
-        div[data-testid="stNotification"] {
-            border-radius: 2px !important;
-            border-left: 4px solid #0078D4 !important;
-            background-color: #F3F2F1 !important;
         }
     </style>
 """, unsafe_allow_html=True)
