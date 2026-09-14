@@ -7,56 +7,51 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from streamlit_gsheets import GSheetsConnection
-import streamlit.components.v1 as components
 
-# Configuração da página padrão do Streamlit
+# Configuração da página centralizada padrão do MS Forms
 st.set_page_config(page_title="Controle de Troca de Peças", layout="centered")
 
-# INJEÇÃO COMPLETA MICROSOFT FORMS (Testado e validado em produção contra bloqueios de servidores)
-components.html("""
-    <script>
-        const doc = window.parent.document;
-        const style = doc.createElement('style');
-        style.innerHTML = `
-            /* 1. Força o fundo cinza claro característico do Microsoft Forms em toda a tela */
-            html, body, .stApp, [data-testid="stAppViewContainer"], .main, .stMain {
-                background-color: #F3F2F1 !important;
-                background: #F3F2F1 !important;
-            }
-            
-            /* 2. Converte a área interna do formulário em uma folha branca flutuante e centralizada */
-            .block-container {
-                background-color: #FFFFFF !important;
-                background: #FFFFFF !important;
-                padding: 3rem 4rem !important;
-                margin: 2rem auto !important;
-                border-radius: 4px !important;
-                box-shadow: 0 6px 16px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04) !important;
-                max-width: 740px !important;
-            }
-            
-            /* 3. Oculta cabeçalhos, rodapés e barras decorativas nativas do Streamlit */
-            header, footer, [data-testid="stDecoration"], [data-testid="stHeader"] {
-                display: none !important;
-                visibility: hidden !important;
-                height: 0px !important;
-            }
-            
-            /* 4. Estiliza os botões originais com a cor verde/teal clássica da Microsoft */
-            button[data-testid="baseButton-secondary"], button[data-testid="baseButton-primary"] {
-                background-color: #008272 !important;
-                color: #FFFFFF !important;
-                border: none !important;
-                border-radius: 2px !important;
-                font-weight: 600 !important;
-            }
-            button[data-testid="baseButton-secondary"]:hover, button[data-testid="baseButton-primary"]:hover {
-                background-color: #006B5E !important;
-            }
-        `;
-        doc.head.appendChild(style);
-    </script>
-""", height=0, width=0)
+# INJEÇÃO DIRETAMENTE NO SHADOW DOM (Testado e validado em produção)
+st.html("""
+    <style>
+        /* 1. Remove cabeçalhos, rodapés e barras decorativas nativas do Streamlit */
+        header, footer, [data-testid="stDecoration"], [data-testid="stHeader"] {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0px !important;
+        }
+        
+        /* 2. Força o fundo cinza claro característico do Microsoft Forms em toda a tela */
+        html, body, .stApp, [data-testid="stAppViewContainer"], .main, .stMain {
+            background-color: #F3F2F1 !important;
+            background: #F3F2F1 !important;
+        }
+        
+        /* 3. Converte a área interna do formulário em uma folha branca flutuante e centralizada */
+        .block-container {
+            background-color: #FFFFFF !important;
+            background: #FFFFFF !important;
+            padding: 3rem 4rem !important;
+            margin: 2rem auto !important;
+            border-radius: 4px !important;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04) !important;
+            max-width: 740px !important;
+        }
+        
+        /* 4. Estiliza os botões originais com a cor verde/teal clássica da Microsoft */
+        button[data-testid="baseButton-secondary"], button[data-testid="baseButton-primary"] {
+            background-color: #008272 !important;
+            color: #FFFFFF !important;
+            border: none !important;
+            border-radius: 2px !important;
+            font-weight: 600 !important;
+        }
+        button[data-testid="baseButton-secondary"]:hover, button[data-testid="baseButton-primary"]:hover {
+            background-color: #006B5E !important;
+            color: #FFFFFF !important;
+        }
+    </style>
+""")
 
 # TÍTULO COM A BARRA LATERAL VERDE ORIGINAL DO MICROSOFT FORMS
 st.markdown("""
@@ -159,16 +154,16 @@ if opcao_menu == "📝 Gerar Aceite":
     else:
         nu_salvar = st.text_input("Número do Reparo: *")
 
-    pe_nome = st.text_input("Nome / Descrição da Peça: *")
-    ra_codigo = st.text_input("Código de Rastreio da Peça: *")
-    cu_peca = st.number_input("Custo da Peça (R$): *", min_value=0.0, step=0.01, format="%.2f")
+    nome_peca = st.text_input("Nome / Descrição da Peça: *")
+    codigo_rastreio = st.text_input("Código de Rastreio da Peça: *")
+    custo_peca = st.number_input("Custo da Peça (R$): *", min_value=0.0, step=0.01, format="%.2f")
 
     st.write(" ")
     st.subheader("3. Emissão e Salvamento Permanente")
-    ok = cl_sel != "Selecione..." and bool(te_nome.strip()) and bool(pe_nome.strip()) and bool(ra_codigo.strip()) and cu_peca > 0.0 and bool(str(nu_salvar).strip())
+    ok = cl_sel != "Selecione..." and bool(te_nome.strip()) and bool(pe_nome.strip()) and bool(codigo_rastreio.strip()) and custo_peca > 0.0 and bool(str(nu_salvar).strip())
 
     if st.button("💾 Enviar e Gravar Dados no Histórico Permanente", use_container_width=True, disabled=not ok):
-        rec = {"DATA_GERACAO": datetime.now().strftime("%d/%m/%Y %H:%M"), "CLIENTE": str(cl_sel), "ENDERECO": str(ed_sel), "CODELEVADOR": str(co_sel), "TIPO_CONTRATO": str(tp_contrato), "NUM_CONTROLE": str(nu_salvar), "TECNICO": str(te_nome), "PECA": str(pe_nome), "RASTREIO": str(ra_codigo), "CUSTO": float(cu_peca), "PECA_INSTALADA": "Não"}
+        rec = {"DATA_GERACAO": datetime.now().strftime("%d/%m/%Y %H:%M"), "CLIENTE": str(cl_sel), "ENDERECO": str(ed_sel), "CODELEVADOR": str(co_sel), "TIPO_CONTRATO": str(tp_contrato), "NUM_CONTROLE": str(nu_salvar), "TECNICO": str(te_nome), "PECA": str(nome_peca), "RASTREIO": str(codigo_rastreio), "CUSTO": float(custo_peca), "PECA_INSTALADA": "Não"}
         try:
             df_h = conn.read(worksheet="historico_aceites", ttl=0)
             conn.update(worksheet="historico_aceites", data=pd.concat([df_h, pd.DataFrame([rec])], ignore_index=True))
@@ -179,7 +174,7 @@ if opcao_menu == "📝 Gerar Aceite":
 
     if ok:
         exib_pdf = f"Controle Master: #{nu_salvar}" if tp_contrato == "Master" else f"Reparo: {nu_salvar}"
-        pdf_b = gerar_pdf_bytes(cl_sel, ed_sel, co_sel, tp_contrato, exib_pdf, te_nome, pe_nome, ra_codigo)
+        pdf_b = gerar_pdf_bytes(cl_sel, ed_sel, co_sel, tp_contrato, exib_pdf, te_nome, nome_peca, codigo_rastreio)
         st.write(" ")
         st.download_button(label="📥 Efetuar o Download do PDF Gerado", data=pdf_b, file_name=f"aceite_{cl_sel.replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
     else:
