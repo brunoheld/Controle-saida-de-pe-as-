@@ -11,22 +11,26 @@ from streamlit_gsheets import GSheetsConnection
 # Configuração da página centralizada padrão do MS Forms
 st.set_page_config(page_title="Controle de Troca de Peças", layout="centered")
 
-# INJEÇÃO ULTRA-AGRESSIVA DE CSS (Força o layout Microsoft Forms e quebra o cache branco)
+# FORÇAMENTO DE CSS COM MÁXIMA PRIORIDADE EM ELEMENTOS INTERNOS (Layout Microsoft Forms)
 st.markdown("""
     <style>
-        /* Remove o cabeçalho superior e o rodapé nativo */
-        header, footer, [data-testid="stDecoration"] { visibility: hidden !important; height: 0px !important; }
-        
-        #root , header, [data-testid="stHeader"] { background: rgba(0,0,0,0) !important; }
-        
-        /* Pinta o fundo da janela inteira com o cinza-claro do MS Forms */
-        div[data-testid="stAppViewContainer"] {
-            background-color: #F3F2F1 !important;
+        /* Desativa e esconde cabeçalhos e decorações do Streamlit */
+        header, footer, [data-testid="stDecoration"], [data-testid="stHeader"] { 
+            visibility: hidden !important; 
+            height: 0px !important; 
+            display: none !important; 
         }
         
-        /* Cria a folha/bloco flutuante branca com sombra centralizada */
-        div[data-testid="stVerticalBlock"] > div:has(.block-container), .main, .block-container {
+        /* Pinta o fundo geral do navegador com o cinza clássico da Microsoft */
+        [data-testid="stAppViewContainer"], [data-testid="stAppViewMainObj"], .stApp, .main, html, body {
+            background-color: #F3F2F1 !important;
+            background: #F3F2F1 !important;
+        }
+        
+        /* Transforma o bloco de inputs em uma folha branca suspensa com bordas e sombra */
+        [data-testid="stVerticalBlock"] > div:has(.block-container), .block-container {
             background-color: #FFFFFF !important;
+            background: #FFFFFF !important;
             padding: 3rem 4rem !important;
             margin: 2rem auto !important;
             border-radius: 4px !important;
@@ -34,7 +38,7 @@ st.markdown("""
             max-width: 740px !important;
         }
         
-        /* Adiciona a barra vertical verde-azulada característica ao lado do título */
+        /* Insere a barra vertical decorativa Teal/Esmeralda ao lado do título */
         h1 {
             color: #0078D4 !important;
             font-family: 'Segoe UI', system-ui, sans-serif !important;
@@ -45,21 +49,14 @@ st.markdown("""
             margin-bottom: 2rem !important;
         }
         
-        h3 {
-            color: #323130 !important;
-            font-family: 'Segoe UI', system-ui, sans-serif !important;
-            font-size: 16px !important;
-            font-weight: 600 !important;
-        }
-        
-        label, .stWidgetLabel p {
+        h3, label, .stWidgetLabel p {
             color: #323130 !important;
             font-family: 'Segoe UI', system-ui, sans-serif !important;
             font-size: 14px !important;
             font-weight: 600 !important;
         }
         
-        /* Customiza os botões com a cor clássica Teal da Microsoft */
+        /* Altera o estilo e as cores de todos os botões para o padrão Microsoft */
         button[data-testid="baseButton-secondary"], button[data-testid="baseButton-primary"] {
             background-color: #008272 !important;
             color: #FFFFFF !important;
