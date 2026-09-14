@@ -1,4 +1,4 @@
-import streamlit as st
+    import streamlit as st
 import pandas as pd
 import io
 from datetime import datetime
@@ -8,16 +8,16 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from streamlit_gsheets import GSheetsConnection
 
-# Configuração da página em modo expandido para controlarmos o tamanho da folha na marra
+# Configuração da página em modo expandido para aplicarmos a calha lateral forçada
 st.set_page_config(page_title="Controle de Troca de Peças", layout="wide")
 
-# Esconde o cabeçalho e rodapé do Streamlit
+# Força a ocultação de barras decorativas nativas do servidor do Streamlit
 st.markdown("<style>header, footer, [data-testid='stDecoration'] {display: none !important;}</style>", unsafe_allow_html=True)
 
-# CONFIGURAÇÃO DE COLUNAS GLOBAIS PARA FORÇAR CENTRALIZAÇÃO DA FOLHA DO FORMS
-col_esq, col_centro, col_dir = st.columns([1, 4, 1])
+# APLICAÇÃO DA PROPORÇÃO MATEMÁTICA [1, 5, 1] PARA FORÇAR O RECUO LATERAL DO FORMS
+col_esquerda, col_centro_formulario, col_direita = st.columns([1, 5, 1])
 
-with col_centro:
+with col_centro_formulario:
     # Cabeçalho idêntico ao Microsoft Forms com a barra vertical decorativa Teal
     st.markdown("""
         <div style='border-left: 6px solid #008272; padding-left: 15px; margin-bottom: 25px; margin-top: 10px;'>
