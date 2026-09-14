@@ -1,145 +1,194 @@
-import streamlit as st, pandas as pd, io, requests
+import streamlit as st
+import pandas as pd
+import io
 from datetime import datetime
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+from streamlit_gsheets import GSheetsConnection
 
-st.set_page_config(page_title="Controle", layout="wide")
-st.title("🛠️ Sistema de Aceite de Troca de Peças")
+# Configuração da página do navegador
+st.set_page_config(page_title="Controle de Troca de Peças", layout="wide")
+st.title("🛠️ Painel de Controle e Emissão de Aceites")
 
-if "chave_reset" not in st.session_state: st.session_state.chave_reset = 0
-if "u_pdf" not in st.session_state: st.session_state.u_pdf = None
-if "u_cli" not in st.session_state: st.session_state.u_cli = ""
-if "h_hide" not in st.session_state: st.session_state.h_hide = False
-if "contador_master_local" not in st.session_state: st.session_state.contador_master_local = None
+# --- CONEXÃO COM O GOOGLE SHEETS via LINK PÚBLICO (Secrets) ---
+conn = st.connection("gsheets", type=GSheetsConnection)
 
-@st.cache_data(ttl=1)
-def l_cli():
+# --- LEITURA DO HISTÓRICO VINDO DO MS FORMS ---
+@st.cache_data(ttl=10)  # Atualiza a cada 10 segundos para pegar novos envios do Forms rápido
+def carregar_historico():
     try:
-        url = st.secrets["link_planilha"]
-        df = pd.read_csv(f"{url.split('/edit')[0]}/export?format=csv&gid=0")
-        df.columns = df.columns.str.strip().str.upper()
-        return df
-    except: return pd.DataFrame(columns=["CLIENTE","ENDERECO","CODELEVADOR"])
+        return conn.read(worksheet="historico_aceites", ttl=0)
+    except Exception as e:
+        st.error(f"Erro ao carregar histórico: {e}")
+        return pd.DataFrame()
 
-def l_hist():
-    if st.session_state.h_hide: return pd.DataFrame()
-    try:
-        url = st.secrets["link_planilha"]
-        df = pd.read_csv(f"{url.split('/edit')[0]}/export?format=csv&sheet=historico_aceites")
-        df.columns = df.columns.str.strip().str.upper()
-        return df
-    except: return pd.DataFrame()
+df_hist = carregar_historico()
 
-df_c = l_cli()
-df_h = l_hist()
+# --- CÁLCULO DO PRÓXIMO NÚMERO MASTER EM TEMPO REAL ---
+def obter_proximo_numero_master(df):
+    if "TIPO_CONTRATO" in df.columns and "NUM_CONTROLE" in df.columns:
+        df_master = df[df["TIPO_CONTRATO"] == "Master"]
+        if not df_master.empty:
+            valores = pd.to_numeric(df_master["NUM_CONTROLE"], errors='coerce').dropna()
+            if not valores.empty:
+                return int(valores.max()) + 1
+    return 1
 
-def n_mst(df):
-    try:
-        if df.empty: return 1
-        df_limpo = df.copy()
-        if "TIPO_CONTRATO" not in df_limpo.columns or "NUM_CONTROLE" not in df_limpo.columns: return 1
-        df_limpo["TIPO_CONTRATO"] = df_limpo["TIPO_CONTRATO"].astype(str).str.strip().str.upper()
-        df_m = df_limpo[df_limpo["TIPO_CONTRATO"] == "MASTER"]
-        if df_m.empty: return 1
-        valores = pd.to_numeric(df_m["NUM_CONTROLE"], errors='coerce').dropna()
-        if valores.empty: return 1
-        return int(valores.max()) + 1
-    except: return 1
+# --- GERADOR DE PDF EM MEMÓRIA ---
+def gerar_pdf_bytes(cliente, endereco, codigo, tipo, num_exib, tecnico, peca, rastreio):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+    styles = getSampleStyleSheet()
+    
+    style_titulo = ParagraphStyle('Titulo', parent=styles['Heading1'], fontSize=18, leading=22, alignment=1, spaceAfter=20, textColor=colors.HexColor('#1E3A8A'))
+    style_sub = ParagraphStyle('Sub', parent=styles['Heading2'], fontSize=12, leading=16, spaceBefore=10, spaceAfter=10, textColor=colors.HexColor('#1E3A8A'))
+    style_corpo = ParagraphStyle('Corpo', parent=styles['Normal'], fontSize=10, leading=14)
+    
+    elementos = [Paragraph("<b>TERMO DE ACEITE DE TROCA DE PEÇAS</b>", style_titulo), Spacer(1, 10)]
+    
+    dados_tabela = [
+        [Paragraph("<b>Cliente:</b>", style_corpo), Paragraph(str(cliente), style_corpo)],
+        [Paragraph("<b>Endereço:</b>", style_corpo), Paragraph(str(endereco), style_corpo)],
+        [Paragraph("<b>Cód. Elevador:</b>", style_corpo), Paragraph(str(codigo), style_corpo)],
+        [Paragraph("<b>Tipo de Registro:</b>", style_corpo), Paragraph(f"{tipo} ({num_exib})", style_corpo)],
+        [Paragraph("<b>Técnico Responsável:</b>", style_corpo), Paragraph(str(tecnico), style_corpo)],
+        [Paragraph("<b>Peça Substituída:</b>", style_corpo), Paragraph(str(peca), style_corpo)],
+        [Paragraph("<b>Código de Rastreio:</b>", style_corpo), Paragraph(str(rastreio), style_corpo)],
+    ]
+    
+    tabela = Table(dados_tabela)
+    tabela.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#F3F4F6')),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D1D5DB')),
+        ('PADDING', (0,0), (-1,-1), 8),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+    ]))
+    elementos.append(tabela)
+    elementos.append(Spacer(1, 40))
+    
+    elementos.append(Paragraph("<b>VALIDAÇÃO OPERACIONAL E ASSINATURAS</b>", style_sub))
+    elementos.append(Spacer(1, 15))
+    
+    dados_assinatura = [
+        [Paragraph("<b>Data da Assinatura:</b> ____/____/_______", style_corpo), Paragraph("", style_corpo)],
+        [Spacer(1, 30), Spacer(1, 30)],
+        [Paragraph("_______________________________________<br/><b>Assinatura do Técnico</b>", style_corpo),
+         Paragraph("_______________________________________<br/><b>Assinatura do Cliente</b>", style_corpo)]
+    ]
+    
+    tabela_ass = Table(dados_assinatura)
+    tabela_ass.setStyle(TableStyle([
+        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+        ('VALIGN', (0,0), (-1,-1), 'TOP')
+    ]))
+    elementos.append(tabela_ass)
+    
+    doc.build(elementos)
+    buffer.seek(0)
+    return buffer.getvalue()
 
-if st.session_state.contador_master_local is None:
-    st.session_state.contador_master_local = n_mst(df_h)
+# --- MENU LATERAL ---
+st.sidebar.title("📌 Menu de Opções")
+opcao_menu = st.sidebar.radio("Selecione a tela:", ["📋 Aguardando Emissão", "🔍 Histórico Geral"])
 
-def g_pdf(c,e,cd,t,n,tec,p,r):
-    buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
-    sty = getSampleStyleSheet()
-    t_s = ParagraphStyle('T', parent=sty['Heading1'], fontSize=17, leading=20, alignment=1, spaceAfter=15, textColor=colors.HexColor('#1E3A8A'))
-    c_s = ParagraphStyle('C', parent=sty['Normal'], fontSize=10, leading=14)
-    el = [Paragraph("<b>TERMO DE ACEITE DE TROCA DE PEÇAS</b>", t_s), Spacer(1, 5)]
-    mat = [[Paragraph(f"<b>{k}:</b>", c_s), Paragraph(str(v), c_s)] for k, v in [("Cliente",c),("Endereço",e),("Cód. Elevador",cd),("Registro",f"{t} ({n})"),("Técnico",tec),("Peça",p),("Rastreio",r)]]
-    tab = Table(mat)
-    tab.setStyle(TableStyle([('BACKGROUND',(0,0),(0,-1),colors.HexColor('#F3F4F6')), ('GRID',(0,0), (-1,-1),0.5,colors.HexColor('#D1D5DB')), ('PADDING', (0,0), (-1,-1),6)]))
-    el.extend([tab, Spacer(1, 20)])
-    ass_t = "_______________________________________<br/><b>Assinatura do Técnico</b>"
-    ass_c = "Nome: _________________________________<br/><br/>Função: _______________________________<br/><br/>RG/CPF: _______________________________<br/><br/>_______________________________________<br/><b>Assinatura do Cliente</b>"
-    t_ass = Table([[Paragraph(ass_t, c_s), Paragraph(ass_c, c_s)]], colWidths=[250, 250])
-    t_ass.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('PADDING', (0,0), (-1,-1), 0)]))
-    el.extend([t_ass])
-    doc.build(el)
-    buf.seek(0)
-    return buf.getvalue()
+# ==============================================================================
+# TELA: AGUARDANDO EMISSÃO (Dados vindos do Forms que precisam gerar PDF)
+# ==============================================================================
+if opcao_menu == "📋 Aguardando Emissão":
+    st.subheader("Filas de Registros vindos do Microsoft Forms")
+    
+    if df_hist.empty:
+        st.info("Nenhum dado encontrado na planilha.")
+    else:
+        # Registros que ainda não tem NUM_CONTROLE preenchido (ou seja, novos do Forms) ou todos para re-emissão
+        # Para facilitar, vamos listar os registros e permitir que o usuário selecione um para processar.
+        df_hist['Index_Original'] = df_hist.index # Guarda o index original para atualizar o sheet correto
+        
+        # Cria uma lista amigável para o Selectbox
+        opcoes_registro = []
+        for idx, row in df_hist.iterrows():
+            opcoes_registro.append(f"Fila {idx} - {row.get('CLIENTE', 'Sem Nome')} ({row.get('DATA_GERACAO', '')})")
+            
+        registro_selecionado_str = st.selectbox("Selecione o chamado para processar e gerar PDF:", opciones_registro)
+        
+        if registro_selecionado_str:
+            # Extrai o index original de volta
+            idx_selecionado = int(registro_selecionado_str.split(" ")[1])
+            row_atual = df_hist.loc[idx_selecionado]
+            
+            st.write("---")
+            st.markdown("### 🔍 Dados do Chamado Selecionado")
+            
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Cliente", str(row_atual.get("CLIENTE", "")))
+            col2.metric("Endereço", str(row_atual.get("ENDERECO", "")))
+            col3.metric("Cód. Elevador", str(row_atual.get("CODELEVADOR", "")))
+            
+            col4, col5, col6 = st.columns(3)
+            col4.metric("Técnico", str(row_atual.get("TECNICO", "")))
+            col5.metric("Tipo Contrato", str(row_atual.get("TIPO_CONTRATO", "")))
+            
+            # Lógica do número de controle
+            tipo_contrato = row_atual.get("TIPO_CONTRATO", "")
+            num_atual = str(row_atual.get("NUM_CONTROLE", ""))
+            
+            # Se for Master e estiver vazio na planilha, calcula na hora
+            if tipo_contrato == "Master" and (num_atual == "" or pd.isna(num_atual) or num_atual == "nan"):
+                proximo_num = obter_proximo_numero_master(df_hist)
+                st.warning(f"📋 Contrato Master detectado sem número. Próximo número disponível: **#{proximo_num}**")
+                num_final = str(proximo_num)
+                precisa_salvar_id = True
+            else:
+                num_final = num_atual
+                precisa_salvar_id = False
+                col6.metric("Nº Controle/Reparo", num_final)
 
-st.subheader("🔍 1. Identificação do Elevador")
-col1, col2, col3 = st.columns(3)
-cc = "CLIENTE" if "CLIENTE" in df_c.columns else df_c.columns if len(df_c.columns)>0 else ""
-ce = "ENDERECO" if "ENDERECO" in df_c.columns else "ENREDECO" if "ENREDECO" in df_c.columns else df_c.columns if len(df_c.columns)>1 else ""
-co = "CODELEVADOR" if "CODELEVADOR" in df_c.columns else df_c.columns if len(df_c.columns)>2 else ""
+            col7, col8, col9 = st.columns(3)
+            col7.write(f"**Peça:** {row_atual.get('PECA', '')}")
+            col8.write(f"**Rastreio:** {row_atual.get('RASTREIO', '')}")
+            col9.write(f"**Custo:** R$ {row_atual.get('CUSTO', 0.0):.2f}")
+            
+            st.write("---")
+            
+            # Se for um ID Master novo gerado pelo Streamlit, precisamos salvar de volta na planilha para fixar ele
+            if precisa_salvar_id:
+                if st.button("💾 Validar e Fixar Número Master na Planilha", use_container_width=True):
+                    try:
+                        # Atualiza a célula específica no DataFrame e manda de volta pro Sheets
+                        df_hist.at[idx_selecionado, "NUM_CONTROLE"] = num_final
+                        # Remove a coluna temporária antes de salvar
+                        df_salvar = df_hist.drop(columns=['Index_Original'])
+                        conn.update(worksheet="historico_aceites", data=df_salvar)
+                        st.success("Número Master gravado com sucesso no histórico!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Erro ao atualizar planilha: {e}")
+            
+            # Botão de download do PDF sempre ativo para o chamado selecionado
+            num_exib_pdf = f"Controle Master: #{num_final}" if tipo_contrato == "Master" else f"Reparo: {num_final}"
+            pdf_bytes = gerar_pdf_bytes(
+                row_atual.get("CLIENTE", ""), row_atual.get("ENDERECO", ""), row_atual.get("CODELEVADOR", ""), 
+                tipo_contrato, num_exib_pdf, row_atual.get("TECNICO", ""), row_atual.get("PECA", ""), row_atual.get("RASTREIO", ""))
+            
+            st.download_button(
+                label="📥 Efetuar o Download do PDF Gerado", 
+                data=pdf_bytes, 
+                file_name=f"aceite_{str(row_atual.get('CLIENTE', '')).replace(' ', '_')}.pdf", 
+                mime="application/pdf", 
+                use_container_width=True
+            )
 
-with col1: sel_c = st.selectbox("Escolha o Cliente:", ["Selecione..."] + list(df_c[cc].dropna().unique()), key=f"c_{st.session_state.chave_reset}")
-df_fc = df_c[df_c[cc] == sel_c] if sel_c != "Selecione..." else pd.DataFrame()
-with col2: sel_e = st.selectbox("Escolha o Endereço:", list(df_fc[ce].dropna().unique()) if not df_fc.empty else ["Aguardando..."], key=f"e_{st.session_state.chave_reset}")
-df_fe = df_fc[df_fc[ce] == sel_e] if not df_fc.empty else pd.DataFrame()
-with col3: sel_o = st.selectbox("Código do Elevador:", list(df_fe[co].dropna().unique()) if not df_fe.empty else ["Aguardando..."], key=f"o_{st.session_state.chave_reset}")
-
-st.write("---")
-st.subheader("📝 2. Dados do Atendimento")
-col_tec, col_tipo = st.columns(2)
-with col_tec: tx_tec = st.text_input("Nome do Técnico Responsável: *", key=f"t_{st.session_state.chave_reset}")
-with col_tipo: rd_tip = st.radio("Tipo de Contrato: *", ["Standart", "Master", "Venda"], key=f"r_{st.session_state.chave_reset}")
-
-if rd_tip == "Master":
-    st.info(f"📋 Número automático: **#{st.session_state.contador_master_local}**")
-    v_num = str(st.session_state.contador_master_local)
-else: v_num = st.text_input("Número do Reparo: *", key=f"rp_{st.session_state.chave_reset}")
-
-col_p, col_r, col_cu = st.columns(3)
-with col_p: tx_pec = st.text_input("Peça: *", key=f"p_{st.session_state.chave_reset}")
-with col_r: tx_ras = st.text_input("Rastreio: *", key=f"ra_{st.session_state.chave_reset}")
-with col_cu: nu_cus = st.number_input("Custo (R$): *", min_value=0.0, step=0.01, format="%.2f", key=f"cu_{st.session_state.chave_reset}")
-
-st.write("---")
-st.subheader("🚀 3. Emissão e Salvamento")
-ok = (sel_c != "Selecione..." and bool(tx_tec.strip()) and bool(tx_pec.strip()) and bool(tx_ras.strip()) and nu_cus > 0.0 and bool(str(v_num).strip()))
-
-if "sv" in st.session_state and st.session_state.sv:
-    st.success("Sucesso! Registro salvo na nuvem.")
-    st.session_state.sv = False
-
-if st.button("💾 Gravar Dados no Histórico Permanente", use_container_width=True, disabled=not ok):
-    lbl = f"Master: #{v_num}" if rd_tip == "Master" else f"Reparo: {v_num}"
-    st.session_state.u_pdf = g_pdf(sel_c, sel_e, sel_o, rd_tip, lbl, tx_tec, tx_pec, tx_ras)
-    st.session_state.u_cli = sel_c
-    pars = {"DATA_GERACAO": datetime.now().strftime("%d/%m/%Y %H:%M"), "CLIENTE": str(sel_c), "ENDERECO": str(sel_e), "CODELEVADOR": str(sel_o), "TIPO_CONTRATO": str(rd_tip), "NUM_CONTROLE": str(v_num), "TECNICO": str(tx_tec), "PECA": str(tx_pec), "RASTREIO": str(tx_ras), "CUSTO": str(nu_cus), "PECA_INSTALADA": "Não"}
-    try:
-        requests.get(st.secrets["script_google"], params=pars, timeout=15)
-        st.session_state.sv = True
-        st.session_state.chave_reset += 1
-        if rd_tip == "Master":
-            st.session_state.contador_master_local += 1
-        st.rerun()
-    except:
-        st.session_state.sv = True
-        st.session_state.chave_reset += 1
-        if rd_tip == "Master":
-            st.session_state.contador_master_local += 1
-        st.rerun()
-
-if st.session_state.u_pdf is not None:
-    st.download_button(label=f"📥 Baixar PDF Gerado para {st.session_state.u_cli}", data=st.session_state.u_pdf, file_name=f"aceite_{st.session_state.u_cli.replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
-elif ok:
-    lbl = f"Master: #{v_num}" if rd_tip == "Master" else f"Reparo: {v_num}"
-    st.download_button(label="📥 Baixar PDF Gerado", data=g_pdf(sel_c, sel_e, sel_o, rd_tip, lbl, tx_tec, tx_pec, tx_ras), file_name=f"aceite_{sel_c.replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
-else: st.warning("⚠️ Preencha todos os campos obrigatórios.")        
-
-st.write("---")
-t_col, b_col = st.columns(2)
-with t_col: st.subheader("📋 Histórico em Tempo Real")
-with b_col:
-    if st.button("🗑️ Limpar Histórico do Navegador", type="primary", use_container_width=True):
-        st.session_state.h_hide = True
-        st.rerun()
-
-if not st.session_state.h_hide and not df_h.empty: st.dataframe(df_h, use_container_width=True)
-else: st.info("Histórico ocultado ou aguardando dados...")
+# ==============================================================================
+# TELA: HISTÓRICO GERAL
+# ==============================================================================
+elif opcao_menu == "🔍 Histórico Geral":
+    st.subheader("Histórico Completo de Sincronizações (Forms + Sheets)")
+    
+    if not df_hist.empty:
+        # Remove coluna temporária se ela existir
+        df_exibir = df_hist.drop(columns=['Index_Original'], errors='ignore')
+        st.dataframe(df_exibir, use_container_width=True)
+    else:
+        st.info("Nenhum dado registrado.")
