@@ -11,44 +11,76 @@ from streamlit_gsheets import GSheetsConnection
 # Configuração da página e centralização estilo folha do MS Forms
 st.set_page_config(page_title="Controle de Troca de Peças", layout="centered")
 
-# Injeção de CSS para recriar as bordas, sombras e cabeçalho do Microsoft Forms
+# INJEÇÃO FORÇADA DE INTERFACE ESTILO MICROSOFT FORMS (Ignora bloqueios padrão)
 st.markdown("""
     <style>
-        header {visibility: hidden;}
-        footer {visibility: hidden;}
+        /* Esconde elementos nativos do Streamlit */
+        header, footer, [data-testid="stDecoration"] { visibility: hidden !important; height: 0px !important; }
         
-        /* Simula o bloco flutuante do formulário Microsoft */
+        /* Força o fundo cinza claro clássico do Microsoft Forms em toda a tela */
+        .stMain, div[data-testid="stAppViewMainObj"], .stApp, .main {
+            background-color: #F3F2F1 !important;
+        }
+        
+        /* Converte a área de conteúdo em um Bloco/Folha flutuante branca com sombra */
         .block-container {
             background-color: #FFFFFF !important;
             padding: 3rem 4rem !important;
-            margin-top: 2rem !important;
-            margin-bottom: 2rem !important;
+            margin-top: 3rem !important;
+            margin-bottom: 3rem !important;
             border-radius: 4px !important;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.08), 0 0 4px rgba(0,0,0,0.04) !important;
+            max-width: 740px !important;
         }
         
-        /* Barra lateral decorativa padrão do MS Forms no título principal */
+        /* Adiciona a icônica barra vertical Teal/Esmeralda do MS Forms ao lado do título */
         h1 {
             color: #0078D4 !important;
             font-family: 'Segoe UI', sans-serif !important;
-            font-size: 24px !important;
+            font-size: 26px !important;
             font-weight: 600 !important;
             border-left: 6px solid #008272 !important;
             padding-left: 15px !important;
-            margin-bottom: 1.5rem !important;
+            margin-bottom: 2rem !important;
         }
         
-        /* Estilização dos botões para a cor Teal clássica da Microsoft */
+        /* Estiliza os subtítulos de seções como perguntas do Forms */
+        h3 {
+            color: #323130 !important;
+            font-family: 'Segoe UI', sans-serif !important;
+            font-size: 16px !important;
+            font-weight: 600 !important;
+            margin-top: 2rem !important;
+            margin-bottom: 1rem !important;
+        }
+        
+        /* Customiza as Labels (textos das perguntas) */
+        label, .stWidgetLabel p {
+            color: #323130 !important;
+            font-family: 'Segoe UI', sans-serif !important;
+            font-size: 14px !important;
+            font-weight: 600 !important;
+        }
+        
+        /* Modifica os botões para a paleta de cores original Teal do Forms */
         button[data-testid="baseButton-secondary"], button[data-testid="baseButton-primary"] {
             background-color: #008272 !important;
             color: #FFFFFF !important;
             border: none !important;
             border-radius: 2px !important;
             font-weight: 600 !important;
+            transition: background-color 0.2s !important;
         }
         button[data-testid="baseButton-secondary"]:hover, button[data-testid="baseButton-primary"]:hover {
             background-color: #006B5E !important;
             color: #FFFFFF !important;
+        }
+        
+        /* Estilização das caixas de mensagem/avisos */
+        div[data-testid="stNotification"] {
+            border-radius: 2px !important;
+            border-left: 4px solid #0078D4 !important;
+            background-color: #F3F2F1 !important;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -121,7 +153,6 @@ def gerar_pdf_bytes(cl, ed, co, tp, nu, te, pe, ra):
 
 st.sidebar.title("📌 Menu de Opções")
 opcao_menu = st.sidebar.radio("Selecione a tela:", ["📝 Gerar Aceite", "🔍 Consultar Histórico"])
-
 if opcao_menu == "📝 Gerar Aceite":
     st.subheader("1. Identificação do Elevador")
     opcoes_cl = ["Selecione..."] + list(df_clientes["CLIENTE"].dropna().unique()) if "CLIENTE" in df_clientes.columns else ["Selecione..."]
@@ -153,15 +184,37 @@ if opcao_menu == "📝 Gerar Aceite":
 
     st.write(" ")
     st.subheader("3. Emissão e Salvamento Permanente")
-    ok = cl_sel != "Selecione..." and bool(te_nome.strip()) and bool(pe_nome.strip()) and bool(ra_codigo.strip()) and cu_peca > 0.0 and bool(str(nu_salvar).strip())
+    
+    # Validação robusta de todos os campos
+    ok = (
+        cl_sel != "Selecione..." and 
+        bool(te_nome.strip()) and 
+        bool(pe_nome.strip()) and 
+        bool(ra_codigo.strip()) and 
+        cu_peca > 0.0 and 
+        bool(str(nu_salvar).strip())
+    )
 
     if st.button("💾 Enviar e Gravar Dados no Histórico Permanente", use_container_width=True, disabled=not ok):
-        rec = {"DATA_GERACAO": datetime.now().strftime("%d/%m/%Y %H:%M"), "CLIENTE": str(cl_sel), "ENDERECO": str(ed_sel), "CODELEVADOR": str(co_sel), "TIPO_CONTRATO": str(tp_contrato), "NUM_CONTROLE": str(nu_salvar), "TECNICO": str(te_nome), "PECA": str(pe_nome), "RASTREIO": str(ra_codigo), "CUSTO": float(cu_peca), "PECA_INSTALADA": "Não"}
+        rec = {
+            "DATA_GERACAO": datetime.now().strftime("%d/%m/%Y %H:%M"), 
+            "CLIENTE": str(cl_sel), 
+            "ENDERECO": str(ed_sel), 
+            "CODELEVADOR": str(co_sel), 
+            "TIPO_CONTRATO": str(tp_contrato), 
+            "NUM_CONTROLE": str(nu_salvar), 
+            "TECNICO": str(te_nome), 
+            "PECA": str(pe_nome), 
+            "RASTREIO": str(ra_codigo), 
+            "CUSTO": float(cu_peca), 
+            "PECA_INSTALADA": "Não"
+        }
         try:
             df_h = conn.read(worksheet="historico_aceites", ttl=0)
             conn.update(worksheet="historico_aceites", data=pd.concat([df_h, pd.DataFrame([rec])], ignore_index=True))
             st.success("Sucesso! Registro salvo diretamente no Google Sheets.")
-            if "numero_documento" in st.session_state: del st.session_state.numero_documento
+            if "numero_documento" in st.session_state: 
+                del st.session_state.numero_documento
         except Exception as e:
             st.error(f"Erro ao salvar na planilha: {e}.")
 
@@ -169,7 +222,13 @@ if opcao_menu == "📝 Gerar Aceite":
         exib_pdf = f"Controle Master: #{nu_salvar}" if tp_contrato == "Master" else f"Reparo: {nu_salvar}"
         pdf_b = gerar_pdf_bytes(cl_sel, ed_sel, co_sel, tp_contrato, exib_pdf, te_nome, pe_nome, ra_codigo)
         st.write(" ")
-        st.download_button(label="📥 Efetuar o Download do PDF Gerado", data=pdf_b, file_name=f"aceite_{cl_sel.replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
+        st.download_button(
+            label="📥 Efetuar o Download do PDF Gerado", 
+            data=pdf_b, 
+            file_name=f"aceite_{cl_sel.replace(' ', '_')}.pdf", 
+            mime="application/pdf", 
+            use_container_width=True
+        )
     else:
         st.warning("⚠️ Preencha todos os campos obrigatórios (*) e insira um valor maior que R$ 0,00.")
 
@@ -179,3 +238,5 @@ elif opcao_menu == "🔍 Consultar Histórico":
         st.dataframe(conn.read(worksheet="historico_aceites", ttl=10), use_container_width=True)
     except Exception as e:
         st.error(f"Erro ao carregar histórico: {e}")
+
+
