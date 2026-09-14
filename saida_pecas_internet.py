@@ -11,31 +11,33 @@ from streamlit_gsheets import GSheetsConnection
 # Configuração da página centralizada padrão do MS Forms
 st.set_page_config(page_title="Controle de Troca de Peças", layout="centered")
 
-# INJEÇÃO COMPLETA PARA FORÇAR O LAYOUT MICROSOFT FORMS (Quebra o bloqueio do servidor)
+# INJEÇÃO ULTRA-AGRESSIVA DE CSS (Força o layout Microsoft Forms e quebra o cache branco)
 st.markdown("""
     <style>
-        /* Remove cabeçalhos e decorações nativas do Streamlit */
+        /* Remove o cabeçalho superior e o rodapé nativo */
         header, footer, [data-testid="stDecoration"] { visibility: hidden !important; height: 0px !important; }
         
-        /* Força a cor de fundo cinza claro característica do MS Forms */
-        .stApp, [data-testid="stAppViewMainObj"], .main, .stMain, html, body {
+        #root , header, [data-testid="stHeader"] { background: rgba(0,0,0,0) !important; }
+        
+        /* Pinta o fundo da janela inteira com o cinza-claro do MS Forms */
+        div[data-testid="stAppViewContainer"] {
             background-color: #F3F2F1 !important;
         }
         
-        /* Converte a área de digitação em uma folha branca flutuante com sombra */
-        .block-container {
+        /* Cria a folha/bloco flutuante branca com sombra centralizada */
+        div[data-testid="stVerticalBlock"] > div:has(.block-container), .main, .block-container {
             background-color: #FFFFFF !important;
             padding: 3rem 4rem !important;
             margin: 2rem auto !important;
             border-radius: 4px !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.06), 0 0 2px rgba(0,0,0,0.04) !important;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04) !important;
             max-width: 740px !important;
         }
         
-        /* Adiciona a icônica barra vertical Teal/Verde ao lado do título */
+        /* Adiciona a barra vertical verde-azulada característica ao lado do título */
         h1 {
             color: #0078D4 !important;
-            font-family: 'Segoe UI', sans-serif !important;
+            font-family: 'Segoe UI', system-ui, sans-serif !important;
             font-size: 26px !important;
             font-weight: 600 !important;
             border-left: 6px solid #008272 !important;
@@ -45,19 +47,19 @@ st.markdown("""
         
         h3 {
             color: #323130 !important;
-            font-family: 'Segoe UI', sans-serif !important;
+            font-family: 'Segoe UI', system-ui, sans-serif !important;
             font-size: 16px !important;
             font-weight: 600 !important;
         }
         
         label, .stWidgetLabel p {
             color: #323130 !important;
-            font-family: 'Segoe UI', sans-serif !important;
+            font-family: 'Segoe UI', system-ui, sans-serif !important;
             font-size: 14px !important;
             font-weight: 600 !important;
         }
         
-        /* Estiliza os botões com a cor clássica Teal da Microsoft */
+        /* Customiza os botões com a cor clássica Teal da Microsoft */
         button[data-testid="baseButton-secondary"], button[data-testid="baseButton-primary"] {
             background-color: #008272 !important;
             color: #FFFFFF !important;
