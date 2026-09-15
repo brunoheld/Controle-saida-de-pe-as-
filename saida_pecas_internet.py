@@ -178,7 +178,7 @@ if opcao_menu == "📝 Gerar Aceite":
         st.write(" ")
         st.download_button(label="📥 Efetuar o Download do PDF Gerado", data=pdf_b, file_name=f"aceite_{cl_sel.replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
     else:
-        st.warning("⚠️ Preencha todos os campos obrigatórios (*) e insira um valor maior que R$ 0,00.")
+        st.warning("⚠️ Preencha todos os campos obrigatórios (*) e insira um valor maior que R$ 0,00.")#
 
 elif opcao_menu == "🔍 Consultar Histórico":
     st.subheader("Histórico de Registros")
