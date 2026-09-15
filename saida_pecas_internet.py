@@ -160,7 +160,9 @@ if opcao_menu == "📝 Gerar Aceite":
 
     st.write(" ")
     st.subheader("3. Emissão e Salvamento Permanente")
-    ok = cl_sel != "Selecione..." and bool(te_nome.strip()) and bool(pe_nome.strip()) and bool(codigo_rastreio.strip()) and custo_peca > 0.0 and bool(str(nu_salvar).strip())
+    
+    # LINHA CORRIGIDA: pe_nome.strip() alterado para nome_peca.strip()
+    ok = cl_sel != "Selecione..." and bool(te_nome.strip()) and bool(nome_peca.strip()) and bool(codigo_rastreio.strip()) and custo_peca > 0.0 and bool(str(nu_salvar).strip())
 
     if st.button("💾 Enviar e Gravar Dados no Histórico Permanente", use_container_width=True, disabled=not ok):
         rec = {"DATA_GERACAO": datetime.now().strftime("%d/%m/%Y %H:%M"), "CLIENTE": str(cl_sel), "ENDERECO": str(ed_sel), "CODELEVADOR": str(co_sel), "TIPO_CONTRATO": str(tp_contrato), "NUM_CONTROLE": str(nu_salvar), "TECNICO": str(te_nome), "PECA": str(nome_peca), "RASTREIO": str(codigo_rastreio), "CUSTO": float(custo_peca), "PECA_INSTALADA": "Não"}
